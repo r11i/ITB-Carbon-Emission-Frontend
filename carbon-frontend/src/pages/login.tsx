@@ -11,6 +11,8 @@ export default function UserLoginForm() {
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotMsg, setForgotMsg] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,18 +52,30 @@ export default function UserLoginForm() {
 
   const handleForgotSubmit = async () => {
     setForgotMsg("");
+    setForgotLoading(true);
     try {
       const res = await fetch("http://localhost:5000/users/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: forgotEmail }),
       });
+
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error || "Failed to send reset link");
+      if (!res.ok) {
+        if (data.error?.toLowerCase().includes("not registered")) {
+          setForgotMsg("❌ Email is not registered.");
+        } else {
+          setForgotMsg("❌ Failed to send reset link.");
+        }
+        return;
+      }
+
       setForgotMsg("✅ Reset link sent to your email.");
     } catch (err: any) {
       setForgotMsg("❌ Error: " + err.message);
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -86,22 +100,42 @@ export default function UserLoginForm() {
         />
 
         <label className="block mb-2 text-sm text-gray-800">Password</label>
-        <input
-          type="password"
-          name="password"
-          value={form.password}
-          onChange={handleChange}
-          className="w-full mb-2 border rounded p-2 text-gray-800"
-          placeholder="Enter your password"
-        />
+        <div className="relative mb-4">
+          <input
+            type={showPassword ? "text" : "password"}
+            name="password"
+            value={form.password}
+            onChange={handleChange}
+            className="w-full border rounded p-2 text-gray-800 pr-10"
+            placeholder="Enter your password"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-2 top-1/2 transform -translate-y-1/2"
+          >
+            <img
+              src={showPassword ? "/hide-password.png" : "/show-password.png"}
+              alt="toggle password visibility"
+              className="w-5 h-5 opacity-70 hover:opacity-100 transition"
+            />
+          </button>
+        </div>
 
         <div className="flex justify-between items-center mb-3">
           <p className="text-xs text-gray-700">
-            Don't have an account? <Link href="/register" className="text-blue-600 hover:underline">Register</Link>
+            Don't have an account?{" "}
+            <Link href="/register" className="text-blue-600 hover:underline">
+              Register
+            </Link>
           </p>
           <button
             type="button"
-            onClick={() => setShowForgot(true)}
+            onClick={() => {
+              setForgotEmail("");
+              setForgotMsg("");
+              setShowForgot(true);
+            }}
             className="text-xs text-gray-800 hover:underline"
           >
             Forgot Password?
@@ -119,7 +153,7 @@ export default function UserLoginForm() {
         {message && <p className="mt-4 text-sm text-center text-gray-800">{message}</p>}
       </div>
 
-      {/* Modal Popup */}
+      {/* Modal Forgot Password */}
       {showForgot && (
         <div className="fixed inset-0 z-50 bg-black bg-opacity-40 flex items-center justify-center">
           <div className="bg-white p-6 rounded shadow-md w-full max-w-md">
@@ -141,8 +175,9 @@ export default function UserLoginForm() {
               <button
                 onClick={handleForgotSubmit}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                disabled={forgotLoading}
               >
-                Send Link
+                {forgotLoading ? "Sending..." : "Send Link"}
               </button>
             </div>
             {forgotMsg && <p className="mt-3 text-sm text-center text-gray-800">{forgotMsg}</p>}

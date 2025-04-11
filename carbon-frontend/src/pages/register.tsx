@@ -8,6 +8,7 @@ export default function UserRegisterForm() {
   const [form, setForm] = useState({ username: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -26,10 +27,12 @@ export default function UserRegisterForm() {
       const data = await res.json();
 
       if (!res.ok) {
-        if (data.error.includes("User already registered")) {
+        if (data.error?.toLowerCase().includes("email already in use")) {
           setMessage("❌ Email already in use. Please login instead.");
+        } else if (data.error?.toLowerCase().includes("user not allowed")) {
+          setMessage("❌ Email already in use or not verified. Please login.");
         } else {
-          throw new Error(data.error);
+          setMessage("❌ Failed: " + data.error);
         }
         return;
       }
@@ -71,17 +74,33 @@ export default function UserRegisterForm() {
         />
 
         <label className="block mb-2 text-sm text-gray-800">Password</label>
-        <input
-          type="password"
-          name="password"
-          value={form.password}
-          onChange={handleChange}
-          className="w-full mb-4 border rounded p-2 text-gray-800"
-          placeholder="Minimum 6 characters"
-        />
+        <div className="relative mb-4">
+          <input
+            type={showPassword ? "text" : "password"}
+            name="password"
+            value={form.password}
+            onChange={handleChange}
+            className="w-full border rounded p-2 text-gray-800 pr-10"
+            placeholder="Minimum 6 characters"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-2 top-1/2 transform -translate-y-1/2"
+          >
+            <img
+              src={showPassword ? "/hide-password.png" : "/show-password.png"}
+              alt="toggle password visibility"
+              className="w-5 h-5 opacity-70 hover:opacity-100 transition"
+            />
+          </button>
+        </div>
 
         <p className="text-xs text-gray-700 mb-3 text-center">
-          Already have an account? <Link href="/login" className="text-blue-600 hover:underline">Login</Link>
+          Already have an account?{" "}
+          <Link href="/login" className="text-blue-600 hover:underline">
+            Login
+          </Link>
         </p>
 
         <button
