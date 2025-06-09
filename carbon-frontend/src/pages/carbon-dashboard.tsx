@@ -1,5 +1,8 @@
+// src/pages/carbon-dashboard.tsx
+"use client"; // Pastikan ini ada di awal file jika menggunakan App Router
+
 import React, { useEffect, useState, useCallback, ReactNode } from "react";
-import { useRouter } from "next/router";
+import { useRouter } from "next/router"; // Menggunakan next/router karena tidak ada useNavigation di file ini sebelumnya, sesuaikan jika Anda menggunakan App Router
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, Legend,
   ResponsiveContainer, PieChart, Pie, Cell, TooltipProps
@@ -32,7 +35,7 @@ interface BuildingJson { [buildingName: string]: BuildingData; }
 
 // --- Helper Functions ---
 const formatNumber = (num: number | undefined | null, decimals = 0): string => {
-    if (num === undefined || num === null) return "N/A";
+    if (num === undefined || num === null || isNaN(num)) return "N/A";
     return num.toLocaleString(undefined, {
         minimumFractionDigits: decimals,
         maximumFractionDigits: decimals
@@ -85,8 +88,9 @@ interface ChartContainerProps {
     isLoading?: boolean;
     actions?: ReactNode;
     className?: string;
+    error?: string | null; // Tambahkan prop error
 }
-const ChartContainer: React.FC<ChartContainerProps> = ({ title, children, isLoading, actions, className = "" }) => (
+const ChartContainer: React.FC<ChartContainerProps> = ({ title, children, isLoading, actions, className = "", error = null }) => (
     <div className={`bg-white rounded-xl p-5 shadow-sm border border-slate-200/60 relative ${className}`}>
         {isLoading && (
             <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10 rounded-xl">
@@ -98,7 +102,14 @@ const ChartContainer: React.FC<ChartContainerProps> = ({ title, children, isLoad
             {actions && <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>}
         </div>
         <div className="h-72 md:h-80 w-full">
-            {children}
+            {/* Tampilkan error di dalam chart container jika ada */}
+            {error && !isLoading ? (
+                <div className="flex items-center justify-center h-full text-sm text-red-500">
+                    Error: {error}
+                </div>
+            ) : (
+                children
+            )}
         </div>
     </div>
 );
@@ -119,27 +130,58 @@ const Dashboard = () => {
   const [isLoadingInitial, setIsLoadingInitial] = useState<boolean>(true);
   const [isLoadingMonthly, setIsLoadingMonthly] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Error states for individual charts
+  const [campusPieError, setCampusPieError] = useState<string | null>(null);
+  const [devicePieError, setDevicePieError] = useState<string | null>(null);
+  const [allBuildingsChartError, setAllBuildingsChartError] = useState<string | null>(null);
+  const [trendChartError, setTrendChartError] = useState<string | null>(null); // Untuk trend chart
+
   const [buildingPieData, setBuildingPieData] = useState<PieSliceData[]>([]);
   const [roomPieData, setRoomPieData] = useState<PieSliceData[]>([]);
   const [currentCampus, setCurrentCampus] = useState<string | null>(null);
   const [currentBuilding, setCurrentBuilding] = useState<string | null>(null);
   const [buildingJsonData, setBuildingJsonData] = useState<BuildingJson | null>(null);
   const [isLoadingBreakdown, setIsLoadingBreakdown] = useState<boolean>(false);
+  const [allBuildingsChartData, setAllBuildingsChartData] = useState<PieSliceData[]>([]);
+  const [isLoadingAllBuildingsChart, setIsLoadingAllBuildingsChart] = useState<boolean>(false);
+
+  // Debug states
+  const [debugLog, setDebugLog] = useState<string[]>([]);
+  const addDebugLog = useCallback((message: string) => {
+      console.log(`[DEBUG] ${message}`);
+      setDebugLog(prev => [...prev.slice(-9), `[${new Date().toLocaleTimeString()}] ${message}`]); // Keep last 10 logs
+  }, []);
+
 
   // --- Generic Fetch Utility ---
   const fetchApi = useCallback(async <T,>(endpoint: string): Promise<T> => {
-    const res = await fetch(`${API_BASE_URL}${endpoint}`);
-    if (!res.ok) {
-        const errorText = await res.text();
-        console.error(`API Error (${res.status}) on ${endpoint}: ${errorText}`);
-        throw new Error(`Failed to fetch data from ${endpoint}. Status: ${res.status}`);
+    addDebugLog(`Fetching API: ${endpoint}`);
+    const startTime = performance.now();
+    try {
+        const res = await fetch(`${API_BASE_URL}${endpoint}`);
+        const duration = (performance.now() - startTime).toFixed(2);
+        addDebugLog(`API fetched: ${endpoint} in ${duration} ms. Status: ${res.status}`);
+        if (!res.ok) {
+            const errorText = await res.text();
+            console.error(`API Error (${res.status}) on ${endpoint}: ${errorText}`);
+            throw new Error(`Failed to fetch data from ${endpoint}. Status: ${res.status}. Details: ${errorText}`);
+        }
+        return res.json() as Promise<T>;
+    } catch (err: any) {
+        const duration = (performance.now() - startTime).toFixed(2);
+        addDebugLog(`API fetch FAILED: ${endpoint} after ${duration} ms. Error: ${err.message}`);
+        throw err;
     }
-    return res.json() as Promise<T>;
-  }, []); // Dependency array is empty as API_BASE_URL is constant within component scope
+  }, [addDebugLog]);
 
   // --- Data Fetching Callbacks ---
   const fetchYearlyData = useCallback(async (isInitialLoad = false) => {
+    const fnName = 'fetchYearlyData';
+    addDebugLog(`${fnName} started. Initial Load: ${isInitialLoad}`);
+    const startTime = performance.now();
     if (!isInitialLoad) setIsLoadingMonthly(true);
+    setTrendChartError(null); // Clear previous error for this chart
     try {
         const json = await fetchApi<{ emissions: CampusData }>("/emissions/campus");
         const emissions = json.emissions;
@@ -159,23 +201,30 @@ const Dashboard = () => {
         setTotalEmissions(total);
         setChartMode("year");
         setSelectedYear(null);
-        setError(null);
+
         if (!isInitialLoad) {
             setBuildingPieData([]); setRoomPieData([]); setCurrentCampus(null);
             setCurrentBuilding(null); setBuildingJsonData(null);
         }
+        const duration = (performance.now() - startTime).toFixed(2);
+        addDebugLog(`${fnName} finished successfully in ${duration} ms. Data points: ${structured.length}`);
     } catch (err: any) {
+        const duration = (performance.now() - startTime).toFixed(2);
         console.error("Failed to fetch yearly data", err);
-        setError(err.message || "Failed to load yearly emissions data.");
-        setTotalEmissions(null);
+        setTrendChartError("Failed to load annual emissions trend."); // Set specific error
+        setError(prev => prev ? `${prev}\nFailed to load yearly emissions.` : "Failed to load yearly emissions.");
+        addDebugLog(`${fnName} FAILED after ${duration} ms. Error: ${err.message}`);
     } finally {
         if (!isInitialLoad) setIsLoadingMonthly(false);
     }
-  }, [fetchApi]);
+  }, [fetchApi, addDebugLog]);
 
   const fetchMonthlyData = useCallback(async (year: string) => {
+    const fnName = 'fetchMonthlyData';
+    addDebugLog(`${fnName} started for year: ${year}`);
+    const startTime = performance.now();
     setIsLoadingMonthly(true);
-    setError(null);
+    setTrendChartError(null); // Clear previous error for this chart
     try {
         const json = await fetchApi<{ emissions: CampusData }>(`/emissions/campus?year=${year}`);
         const emissions = json.emissions;
@@ -191,16 +240,24 @@ const Dashboard = () => {
         setComparisonData(structured);
         setSelectedYear(year);
         setChartMode("month");
+        const duration = (performance.now() - startTime).toFixed(2);
+        addDebugLog(`${fnName} finished successfully in ${duration} ms. Data points: ${structured.length}`);
     } catch (err: any) {
+        const duration = (performance.now() - startTime).toFixed(2);
         console.error("Failed to fetch monthly data for year:", year, err);
-        setError(err.message || `Failed to load monthly data for ${year}.`);
+        setTrendChartError(`Failed to load monthly data for ${year}.`); // Set specific error
+        setError(prev => prev ? `${prev}\nFailed to load monthly data for ${year}.` : `Failed to load monthly data for ${year}.`);
+        addDebugLog(`${fnName} FAILED after ${duration} ms. Error: ${err.message}`);
     } finally {
         setIsLoadingMonthly(false);
     }
-  }, [fetchApi]);
+  }, [fetchApi, addDebugLog]);
 
   const fetchCampusPieData = useCallback(async () => {
-    setError(null);
+    const fnName = 'fetchCampusPieData';
+    addDebugLog(`${fnName} started.`);
+    const startTime = performance.now();
+    setCampusPieError(null); // Clear previous error for this chart
     try {
         const json = await fetchApi<{ emissions: CampusData }>("/emissions/campus");
         const emissions = json.emissions;
@@ -214,33 +271,71 @@ const Dashboard = () => {
         setCampusPieData(structured);
         setBuildingPieData([]); setRoomPieData([]); setCurrentCampus(null);
         setCurrentBuilding(null); setBuildingJsonData(null);
+        const duration = (performance.now() - startTime).toFixed(2);
+        addDebugLog(`${fnName} finished successfully in ${duration} ms. Data points: ${structured.length}`);
     } catch (err: any) {
+        const duration = (performance.now() - startTime).toFixed(2);
         console.error("Failed to fetch campus pie data", err);
-        setError(err.message || "Failed to load campus breakdown data.");
+        setCampusPieError("Failed to load campus breakdown data."); // Set specific error
+        setError(prev => prev ? `${prev}\nFailed to load campus breakdown data.` : "Failed to load campus breakdown data.");
         setCampusPieData([]);
+        addDebugLog(`${fnName} FAILED after ${duration} ms. Error: ${err.message}`);
     }
-  }, [fetchApi]);
+  }, [fetchApi, addDebugLog]);
 
   const fetchDeviceData = useCallback(async () => {
-    setError(null);
+    const fnName = 'fetchDeviceData';
+    addDebugLog(`${fnName} started.`);
+    const startTime = performance.now();
+    setDevicePieError(null); // Clear previous error for this chart
     try {
         const json = await fetchApi<{ device_emissions?: { [key: string]: number } }>("/emissions/device");
         if (!json.device_emissions) { setDevicePieData([]); return; }
-        const structured: PieSliceData[] = Object.entries(json.device_emissions)
+
+        const rawData = Object.entries(json.device_emissions)
             .map(([name, value]) => ({ name, value }))
-            .filter(item => item.value > 0).sort((a, b) => b.value - a.value);
+            .filter(item => item.value > 0);
+
+        // Sortir data berdasarkan nilai emisi secara menurun
+        rawData.sort((a, b) => b.value - a.value);
+
+        const TOP_N_DEVICES = 10; // Tampilkan 10 perangkat teratas
+        let structured: PieSliceData[] = [];
+        let otherValue = 0;
+
+        // Ambil N teratas
+        for (let i = 0; i < rawData.length; i++) {
+            if (i < TOP_N_DEVICES) {
+                structured.push(rawData[i]);
+            } else {
+                otherValue += rawData[i].value;
+            }
+        }
+
+        // Tambahkan slice "Other" jika ada data sisa dan nilainya signifikan
+        if (otherValue > 0) {
+            structured.push({ name: "Other Devices", value: otherValue });
+        }
+        
         setDevicePieData(structured);
+        const duration = (performance.now() - startTime).toFixed(2);
+        addDebugLog(`${fnName} finished successfully in ${duration} ms. Data points (after aggregation): ${structured.length}`);
     } catch (err: any) {
+        const duration = (performance.now() - startTime).toFixed(2);
         console.error("Failed to fetch device data", err);
-        setError(err.message || "Failed to load device emissions data.");
+        setDevicePieError("Failed to load device emissions data."); // Set specific error
+        setError(prev => prev ? `${prev}\nFailed to load device emissions data.` : "Failed to load device emissions data.");
         setDevicePieData([]);
+        addDebugLog(`${fnName} FAILED after ${duration} ms. Error: ${err.message}`);
     }
-  }, [fetchApi]);
+  }, [fetchApi, addDebugLog]);
 
   const fetchBuildingPieData = useCallback(async (campusName: string) => {
+    const fnName = 'fetchBuildingPieData';
+    addDebugLog(`${fnName} started for campus: ${campusName}`);
+    const startTime = performance.now();
     if (!campusName) return;
     setIsLoadingBreakdown(true);
-    setError(null);
     try {
         const json = await fetchApi<{ buildings: BuildingJson }>(
             `/emissions/building?campus=${encodeURIComponent(campusName)}`
@@ -253,15 +348,63 @@ const Dashboard = () => {
         setBuildingPieData(structured);
         setCurrentCampus(campusName);
         setRoomPieData([]); setCurrentBuilding(null);
+        const duration = (performance.now() - startTime).toFixed(2);
+        addDebugLog(`${fnName} finished successfully in ${duration} ms. Data points: ${structured.length}`);
     } catch (err: any) {
+        const duration = (performance.now() - startTime).toFixed(2);
         console.error("Failed to fetch building data for campus:", campusName, err);
-        setError(err.message || `Failed to load building data for ${campusName}.`);
+        setError(prev => prev ? `${prev}\nFailed to load building data for ${campusName}.` : `Failed to load building data for ${campusName}.`);
+        addDebugLog(`${fnName} FAILED after ${duration} ms. Error: ${err.message}`);
     } finally {
         setIsLoadingBreakdown(false);
     }
-  }, [fetchApi]);
+  }, [fetchApi, addDebugLog]);
+
+  const fetchAllBuildingsForBarChart = useCallback(async () => {
+    const fnName = 'fetchAllBuildingsForBarChart';
+    addDebugLog(`${fnName} started.`);
+    const startTime = performance.now();
+    setIsLoadingAllBuildingsChart(true);
+    setAllBuildingsChartError(null); // Clear previous error for this chart
+    try {
+        const json = await fetchApi<{ buildings: BuildingJson }>("/emissions/building");
+        const buildings = json.buildings;
+
+        const rawData = Object.entries(buildings)
+            .map(([name, data]) => ({
+                name: name,
+                value: data.total_emission
+            }))
+            .filter(item => item.value > 0);
+
+        // Sortir data berdasarkan emisi secara menurun
+        rawData.sort((a, b) => b.value - a.value);
+
+        const TOP_N_BUILDINGS = 20; // Tampilkan 20 bangunan teratas
+
+        // Batasi jumlah data yang ditampilkan
+        const structured: PieSliceData[] = rawData.slice(0, TOP_N_BUILDINGS);
+
+        setAllBuildingsChartData(structured);
+        const duration = (performance.now() - startTime).toFixed(2);
+        addDebugLog(`${fnName} finished successfully in ${duration} ms. Data points (after limit): ${structured.length}`);
+    } catch (err: any) {
+        const duration = (performance.now() - startTime).toFixed(2);
+        console.error("Failed to fetch all buildings data for bar chart", err);
+        setAllBuildingsChartError("Failed to load building emissions chart."); // Set specific error
+        setError(prev => prev ? `${prev}\nFailed to load building emissions chart.` : "Failed to load building emissions chart.");
+        setAllBuildingsChartData([]);
+        addDebugLog(`${fnName} FAILED after ${duration} ms. Error: ${err.message}`);
+    } finally {
+        setIsLoadingAllBuildingsChart(false);
+    }
+  }, [fetchApi, addDebugLog]);
+
 
   const fetchRoomPieData = useCallback((buildingName: string) => {
+    const fnName = 'fetchRoomPieData';
+    addDebugLog(`${fnName} started for building: ${buildingName}`);
+    const startTime = performance.now();
     if (!buildingJsonData || !buildingJsonData[buildingName]?.rooms) {
         console.warn("No room data found for building:", buildingName);
         setRoomPieData([]); return;
@@ -272,88 +415,99 @@ const Dashboard = () => {
       .filter(item => item.value > 0).sort((a, b) => b.value - a.value);
     setRoomPieData(structured);
     setCurrentBuilding(buildingName);
-  }, [buildingJsonData]); // Depends only on buildingJsonData
+    const duration = (performance.now() - startTime).toFixed(2);
+    addDebugLog(`${fnName} finished successfully in ${duration} ms. Data points: ${structured.length}`);
+  }, [buildingJsonData, addDebugLog]);
 
   // --- Event Handlers ---
   const handlePieClick = useCallback((data: any) => {
     if (isLoadingBreakdown) return;
     const name = data?.name;
     if (!name) return;
+    addDebugLog(`Pie clicked: ${name}. Current campus: ${currentCampus}, Current building: ${currentBuilding}`);
     if (roomPieData.length === 0 && buildingPieData.length > 0) fetchRoomPieData(name);
     else if (roomPieData.length === 0 && buildingPieData.length === 0) fetchBuildingPieData(name);
-  }, [isLoadingBreakdown, roomPieData.length, buildingPieData.length, fetchRoomPieData, fetchBuildingPieData]);
+  }, [isLoadingBreakdown, roomPieData.length, buildingPieData.length, fetchRoomPieData, fetchBuildingPieData, addDebugLog, currentCampus, currentBuilding]);
 
   const handleBackPie = useCallback(() => {
     if (roomPieData.length > 0) {
+      addDebugLog("Going back from Room level to Building level.");
       setRoomPieData([]); setCurrentBuilding(null);
     } else if (buildingPieData.length > 0) {
+      addDebugLog("Going back from Building level to Campus level.");
       setBuildingPieData([]); setCurrentCampus(null); setBuildingJsonData(null);
     }
-  }, [roomPieData.length, buildingPieData.length]); // Correct dependencies
+  }, [roomPieData.length, buildingPieData.length, addDebugLog]);
 
   // --- Initial Data Load Effect ---
   useEffect(() => {
     const loadInitialData = async () => {
       setIsLoadingInitial(true);
-      setError(null);
+      setError(null); // Clear previous errors on new full load attempt
+      addDebugLog("Starting initial data load sequence...");
       try {
-        await Promise.all([ fetchYearlyData(true), fetchCampusPieData(), fetchDeviceData() ]);
+        await Promise.all([
+            fetchYearlyData(true),
+            fetchCampusPieData(),
+            fetchDeviceData(),
+            fetchAllBuildingsForBarChart()
+        ]);
+        addDebugLog("All initial data fetches completed.");
       } catch (err) {
-        setError("Failed to load initial dashboard data. Please try refreshing.");
-        console.error("Error during initial data load:", err);
+        console.error("Error during initial data load sequence:", err);
+        addDebugLog(`Initial data load sequence FAILED: ${err}`);
       } finally {
         setIsLoadingInitial(false);
+        addDebugLog("Initial data load sequence finished.");
       }
     };
     loadInitialData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only once on mount
+  }, [fetchYearlyData, fetchCampusPieData, fetchDeviceData, fetchAllBuildingsForBarChart, addDebugLog]); // Add addDebugLog to dependencies
 
   // --- Derived State & Variables ---
   const yearsForSelector = Array.from(new Set(comparisonData.map(d => d.year))).filter(y => y).sort();
   const averageMonthlyEmission = totalEmissions !== null ? totalEmissions / 12 : null;
-  const topEmittingCampusName = campusPieData.length > 0 ? campusPieData[0].name : null;
-  const breakdownTitle = roomPieData.length > 0 ? `Room Emissions in ${currentBuilding}`
-                       : buildingPieData.length > 0 ? `Building Emissions for ${currentCampus}`
-                       : "Total Emissions by Campus";
-  const breakdownData = roomPieData.length > 0 ? roomPieData
-                      : buildingPieData.length > 0 ? buildingPieData
-                      : campusPieData;
-  const breakdownPalette = roomPieData.length > 0 ? roomPiePalette
-                         : buildingPieData.length > 0 ? buildingPiePalette
-                         : campusPiePalette;
-  const canGoBackInBreakdown = buildingPieData.length > 0 || roomPieData.length > 0;
-  const backButtonLabel = roomPieData.length > 0 ? "to Buildings" : "to Campuses";
-  const isBreakdownPieClickable = roomPieData.length === 0;
+  const topEmittingBuildingName = allBuildingsChartData.length > 0 ? allBuildingsChartData[0].name : null;
 
   // --- Loading Render ---
-  if (isLoadingInitial) {
+  if (isLoadingInitial && !error) { // Show loading spinner only if no error has occurred yet during initial load
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
         <div className="text-center">
           <LoadingSpinner size="lg" />
           <p className="mt-4 text-slate-600 font-medium">Loading Carbon Emissions Data...</p>
+          <div className="mt-4 text-xs text-slate-500 max-h-24 overflow-y-auto bg-slate-100 p-2 rounded">
+              <h3 className="font-semibold mb-1">Debug Logs:</h3>
+              {debugLog.map((log, index) => (
+                  <p key={index} className="text-left">{log}</p>
+              ))}
+          </div>
         </div>
       </div>
     );
   }
 
-  // --- Error Render ---
-   if (error && !isLoadingInitial && totalEmissions === null) {
+  // --- Error Render for Catastrophic Failure ---
+   if (error && !isLoadingInitial && totalEmissions === null && allBuildingsChartData.length === 0 && campusPieData.length === 0 && devicePieData.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-6 text-center">
                  <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-red-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 <h2 className="text-xl font-semibold text-slate-700 mb-2">Oops! Something went wrong.</h2>
-                <p className="text-slate-500 mb-4">{error}</p>
+                <p className="text-slate-500 mb-4 whitespace-pre-line">{error}</p>
                 <button onClick={() => window.location.reload()} className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors">Retry</button>
+                <div className="mt-4 text-xs text-slate-500 max-h-24 overflow-y-auto bg-slate-100 p-2 rounded">
+                    <h3 className="font-semibold mb-1">Debug Logs:</h3>
+                    {debugLog.map((log, index) => (
+                        <p key={index} className="text-left">{log}</p>
+                    ))}
+                </div>
             </div>
         );
     }
 
   // --- Custom Chart Components ---
-  // These functions are defined outside the main component body or memoized if needed
   const renderCustomizedPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
-    if (percent < 0.03) return null;
+    if (percent < 0.03) return null; // Hanya tampilkan label jika persentase cukup besar
     const RADIAN = Math.PI / 180;
     const radius = innerRadius + (outerRadius - innerRadius) * 0.6;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
@@ -369,10 +523,12 @@ const Dashboard = () => {
      if (active && payload && payload.length) {
       const data = payload[0].payload;
       let title = "";
-      if (chartMode === 'year' && data?.year) title = `Year: ${data.year}`;
-      else if (chartMode === 'month' && data?.month && selectedYear) title = `Month: ${monthLabels[parseInt(data.month)] || data.month}, ${selectedYear}`;
-      else if (payload[0]?.name) title = `${payload[0].name}`;
-      else if (label) title = `${label}`;
+      // Distinguish between different chart types based on payload properties or chartMode
+      if (payload[0]?.payload?.year && chartMode === 'year') title = `Year: ${data.year}`;
+      else if (payload[0]?.payload?.month && chartMode === 'month' && selectedYear) title = `Month: ${monthLabels[parseInt(data.month)] || data.month}, ${selectedYear}`;
+      else if (payload[0]?.name) title = `${payload[0].name}`; // For pie charts, building bar chart
+      else if (label) title = `${label}`; // Fallback for general bar/line XAxis label
+
       return (
         <div className="bg-white/95 p-2.5 rounded-lg shadow-lg border border-gray-200/80 text-xs backdrop-blur-sm">
           <p className="font-semibold text-gray-700 mb-1.5 border-b border-gray-200 pb-1">{title}</p>
@@ -391,8 +547,6 @@ const Dashboard = () => {
     return null;
   };
 
-  // --- Main Render ---
-  // This is line 306
   return (
     <div className="p-4 md:p-6 lg:p-8 bg-gray-50 min-h-screen font-sans">
       {/* Header Section */}
@@ -407,17 +561,17 @@ const Dashboard = () => {
             </svg>
             Back to Home
           </button>
-          <h1 className="text-xl md:text-2xl font-bold text-gray-800">
-            ITB Carbon Emissions Dashboard
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800 bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
+          ITB Carbon Emissions Dashboard
           </h1>
           <div className="w-5"></div>
         </div>
 
 
-         {/* Error Banner */}
-         {error && totalEmissions !== null && (
+         {/* Error Banner for non-catastrophic errors */}
+         {error && (totalEmissions !== null || campusPieData.length > 0 || allBuildingsChartData.length > 0 || devicePieData.length > 0) && (
             <div className="mb-4 p-3 bg-red-100 border border-red-300 text-red-800 text-sm rounded-md" role="alert">
-                {error}
+                <p className="whitespace-pre-line">{error}</p>
             </div>
          )}
 
@@ -438,10 +592,10 @@ const Dashboard = () => {
                 isLoading={totalEmissions === null && isLoadingInitial}
              />
              <DashboardCard
-                title="Top Emitter (Campus)"
-                value={topEmittingCampusName ?? '-'}
-                icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.05 3.636a1 1 0 011.414 0L10 7.172l3.536-3.536a1 1 0 111.414 1.414L11.414 8.586l3.536 3.535a1 1 0 11-1.414 1.415L10 10.414l-3.536 3.536a1 1 0 01-1.414-1.415L8.586 8.586 5.05 5.051a1 1 0 010-1.415z" clipRule="evenodd" /></svg>}
-                isLoading={campusPieData.length === 0 && isLoadingInitial}
+                title="Top Emitter (Building)"
+                value={topEmittingBuildingName ?? '-'}
+                icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H5a1 1 0 110-2V4zm3 1h2v1H7V5zm0 2h2v1H7V7zm0 2h2v1H7V9zm0 2h2v1H7v-1zm4-6h2v1h-2V5zm0 2h2v1h-2V7zm0 2h2v1h-2V9zm0 2h2v1h-2v-1z" clipRule="evenodd" /></svg>}
+                isLoading={(allBuildingsChartData.length === 0 && isLoadingInitial) || isLoadingAllBuildingsChart}
             />
         </div>
       </header>
@@ -450,8 +604,9 @@ const Dashboard = () => {
       <main className="space-y-6">
             {/* Row 1: Trend Chart */}
             <ChartContainer
-                title={chartMode === 'year' ? "Total Annual Emissions Trend" : `Monthly Emissions Trend for ${selectedYear}`}
+                title={chartMode === 'year' ? "Total Annual Emissions Trend" : `Monthly Emissions Trend for ${selectedYear} (Campuses)`}
                 isLoading={isLoadingMonthly}
+                error={trendChartError} // Pasang error prop di sini
                 actions={
                     <>
                         {chartMode === 'year' && yearsForSelector.map(year => (
@@ -466,84 +621,74 @@ const Dashboard = () => {
                     </>
                 }
             >
-                <ResponsiveContainer width="100%" height="100%">
+                {comparisonData.length > 0 ? (
                     <LineChart data={comparisonData.map(d => ({ ...d, name: chartMode === 'year' ? d.year : (monthLabels[parseInt(d.month!)] || d.month), total: Object.entries(d).filter(([k]) => k !== 'year' && k !== 'month').reduce((s,[,v])=>s+(v as number||0),0) }))} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                         <XAxis dataKey="name" tick={{ fill: grayPalette[5], fontSize: 11 }} axisLine={{ stroke: grayPalette[2] }} tickLine={false} padding={{ left: 10, right: 10 }} />
                         <YAxis tick={{ fill: grayPalette[5], fontSize: 11 }} axisLine={{ stroke: grayPalette[2] }} tickLine={false} tickFormatter={(v) => v.toLocaleString()} width={50} />
                         <Tooltip content={<CustomTooltip />} cursor={{ stroke: grayPalette[3], strokeDasharray: '3 3' }}/>
                         <Line type="monotone" dataKey="total" name="Total Emissions" stroke={trendPalette[0]} strokeWidth={2.5} dot={{ r: 3, fill: trendPalette[0], strokeWidth: 1, stroke: 'white' }} activeDot={{ r: 5, stroke: '#1D4ED8', strokeWidth: 2, fill: 'white' }} />
                     </LineChart>
-                </ResponsiveContainer>
+                    ) : (
+                        <div className="flex items-center justify-center h-full text-sm text-slate-400">
+                            {isLoadingMonthly || (isLoadingInitial && comparisonData.length === 0) ? 'Loading...' : 'No trend data available'}
+                        </div>
+                    )}
             </ChartContainer>
 
             {/* Row 2: Comparison Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Bar Chart */}
               <ChartContainer
-                  title={chartMode === "year" ? "Annual Emissions by Campus" : `Monthly Emissions by Campus (${selectedYear})`}
-                  isLoading={isLoadingMonthly}
-                  actions={chartMode === "month" ? (
-                      <button onClick={() => fetchYearlyData()} disabled={isLoadingMonthly} className="flex items-center text-xs px-3 py-1.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-md shadow-sm hover:bg-slate-50 disabled:opacity-50 transition-colors">
-                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                         Show Annual Comparison
-                      </button>
-                  ) : undefined}
+                  title="Total Emissions by Building"
+                  isLoading={isLoadingAllBuildingsChart}
+                  error={allBuildingsChartError} // Pasang error prop di sini
               >
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={comparisonData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }} onClick={(e: any) => { if (chartMode === "year" && e?.activePayload?.[0]?.payload?.year) fetchMonthlyData(e.activePayload[0].payload.year); }}>
-                       <XAxis dataKey={chartMode === "year" ? "year" : "month"} tickFormatter={(v) => chartMode === "month" ? (monthLabels[parseInt(v)] || v) : v} tick={{ fill: grayPalette[5], fontSize: 11 }} axisLine={{ stroke: grayPalette[2] }} tickLine={false} padding={{ left: 10, right: 10 }} />
-                      <YAxis tick={{ fill: grayPalette[5], fontSize: 11 }} axisLine={{ stroke: grayPalette[2] }} tickLine={false} tickFormatter={(v) => v.toLocaleString()} width={50} />
-                      <Tooltip content={<CustomTooltip />} cursor={{ fill: grayPalette[1] }} />
-                      <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '12px' }} formatter={(v) => <span className="text-slate-600">{v}</span>} iconSize={10} />
-                      {Object.keys(campusRawData).map((campus, index) => (
-                        <Bar key={campus} dataKey={campus} fill={comparisonPalette[index % comparisonPalette.length]} radius={[4, 4, 0, 0]} maxBarSize={40} style={{ cursor: chartMode === 'year' ? 'pointer' : 'default' }}/>
-                      ))}
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {allBuildingsChartData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={allBuildingsChartData} margin={{ top: 5, right: 20, left: 10, bottom: 50 }}>
+                            <XAxis
+                                dataKey="name"
+                                tick={{ fill: grayPalette[5], fontSize: 10 }}
+                                axisLine={{ stroke: grayPalette[2] }}
+                                tickLine={false}
+                                interval={0}
+                                angle={-40}
+                                textAnchor="end"
+                                height={70}
+                            />
+                            <YAxis tick={{ fill: grayPalette[5], fontSize: 11 }} axisLine={{ stroke: grayPalette[2] }} tickLine={false} tickFormatter={(v) => v.toLocaleString()} width={50} />
+                            <Tooltip content={<CustomTooltip />} cursor={{ fill: grayPalette[1] }} />
+                            <Bar dataKey="value" name="Total Emissions" fill={comparisonPalette[0]} radius={[4, 4, 0, 0]} maxBarSize={40} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="flex items-center justify-center h-full text-sm text-slate-400">
+                            {isLoadingAllBuildingsChart || (isLoadingInitial && allBuildingsChartData.length === 0) ? 'Loading...' : 'No building emission data available'}
+                        </div>
+                    )}
               </ChartContainer>
 
-              {/* Breakdown Pie Chart */}
+              {/* Emissions by Device Type Chart (Moved Here) */}
               <ChartContainer
-                  title={breakdownTitle}
-                  isLoading={isLoadingBreakdown}
-                  actions={canGoBackInBreakdown ? (
-                      <button onClick={handleBackPie} disabled={isLoadingBreakdown} className="flex items-center text-xs px-3 py-1.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-md shadow-sm hover:bg-slate-50 disabled:opacity-50 transition-colors">
-                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                         Back {backButtonLabel}
-                      </button>
-                  ) : undefined}
-             >
-                <ResponsiveContainer width="100%" height="100%">
-                    {breakdownData.length > 0 ? (
-                        <PieChart>
-                            <Pie data={breakdownData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="85%" innerRadius="55%" labelLine={false} label={renderCustomizedPieLabel} onClick={handlePieClick} stroke={grayPalette[0]} strokeWidth={1} style={{ cursor: isBreakdownPieClickable ? 'pointer' : 'default' }}>
-                            {breakdownData.map((_, index) => (<Cell key={`cell-breakdown-${index}`} fill={breakdownPalette[index % breakdownPalette.length]} style={{ filter: 'brightness(95%)' }} />))}
-                            </Pie>
-                            <Tooltip content={<CustomTooltip />} />
-                            <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ paddingTop: '15px', fontSize: '12px', lineHeight: '16px', maxHeight: '60px', overflowY: 'auto' }} formatter={(v) => <span className="text-slate-600 truncate" title={v}>{v}</span>} iconSize={10} />
-                        </PieChart>
-                    ) : ( <div className="flex items-center justify-center h-full text-sm text-slate-400">{isLoadingBreakdown ? 'Loading...' : 'No data available for this level'}</div> )}
-                </ResponsiveContainer>
-             </ChartContainer>
+                  title="Emissions by Device Type"
+                  isLoading={isLoadingInitial && devicePieData.length === 0} // Menggunakan initial loading
+                  error={devicePieError} // Pasang error prop di sini
+              >
+                 {devicePieData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie data={devicePieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="80%" innerRadius="50%" labelLine={false} label={renderCustomizedPieLabel} stroke={grayPalette[0]} strokeWidth={1}>
+                                    {devicePieData.map((_, index) => (<Cell key={`cell-device-${index}`} fill={devicePiePalette[index % devicePiePalette.length]} style={{ filter: 'brightness(95%)' }} />))}
+                                </Pie>
+                                <Tooltip content={<CustomTooltip />} />
+                                <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ paddingTop: '15px', fontSize: '12px', lineHeight: '16px' }} formatter={(v) => <span className="text-slate-600">{v}</span>} iconSize={10} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                     ) : ( <div className="flex items-center justify-center h-full text-sm text-slate-400">{isLoadingInitial && devicePieData.length === 0 ? 'Loading...' : 'No device data available'}</div> )}
+              </ChartContainer>
             </div>
-
-             {/* Row 3: Device Distribution Chart */}
-             <ChartContainer title="Emissions by Device Type">
-                 <ResponsiveContainer width="100%" height="100%">
-                     {devicePieData.length > 0 ? (
-                        <PieChart>
-                            <Pie data={devicePieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="80%" innerRadius="50%" labelLine={false} label={renderCustomizedPieLabel} stroke={grayPalette[0]} strokeWidth={1}>
-                                {devicePieData.map((_, index) => (<Cell key={`cell-device-${index}`} fill={devicePiePalette[index % devicePiePalette.length]} style={{ filter: 'brightness(95%)' }} />))}
-                            </Pie>
-                            <Tooltip content={<CustomTooltip />} />
-                            <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ paddingTop: '15px', fontSize: '12px', lineHeight: '16px' }} formatter={(v) => <span className="text-slate-600">{v}</span>} iconSize={10} />
-                        </PieChart>
-                     ) : ( <div className="flex items-center justify-center h-full text-sm text-slate-400">No device data available</div> )}
-                  </ResponsiveContainer>
-             </ChartContainer>
       </main>
     </div>
-  ); 
-}; 
+  );
+};
 
 export default Dashboard;
