@@ -56,7 +56,7 @@ export default function HomePage() {
   const [selectedCampusTotalEmission, setSelectedCampusTotalEmission] = useState<number | null>(null);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"Summary" | "Buildings">("Summary");
 
-  // --- Logika Fetching Data (Tidak diubah, hanya di-collapse untuk keterbacaan) ---
+  // --- Logika Fetching Data ---
   const handleLocationSelect=useCallback((l:LocationData,oS=true)=>{setSelectedLocation(l);if(oS)setIsLocationSidebarOpen(true);setActiveSidebarTab("Summary")},[]);
   useEffect(()=>{if(!isAuthLoading&&!selectedLocation){handleLocationSelect(initialGaneshaCampusData,false)}},[isAuthLoading,selectedLocation,handleLocationSelect]);
   const fetchAvailableYears=useCallback(async()=>{if(!initialGaneshaCampusData.id){setAvailableYears(["All"]);return}try{const cI=initialGaneshaCampusData.id;const aU=`${API_BASE_URL}/emissions/campus?campus=${cI}&year=All`;const r=await fetch(aU);if(!r.ok)throw new Error(`API ${r.status}`);const d:CampusEmissionsResponse=await r.json();let yS=new Set<string>();if(d&&d.emissions&&d.emissions[cI]){Object.keys(d.emissions[cI]).forEach(y=>{if(!isNaN(parseInt(y)))yS.add(y)})}else if(d&&d.emissions&&typeof d.emissions==='object'&&!d.emissions[cI]){Object.keys(d.emissions).forEach(y=>{if(!isNaN(parseInt(y)))yS.add(y)})}const sY=Array.from(yS).sort((a,b)=>parseInt(b)-parseInt(a));setAvailableYears(["All",...sY])}catch(e){console.error("Err fetch years:",e);setAvailableYears(["All"])}},[]);
@@ -66,7 +66,6 @@ export default function HomePage() {
   const handleCloseLocationSidebar=useCallback(()=>setIsLocationSidebarOpen(false),[]);
   const handleYearChange=useCallback((nY:string)=>setSelectedYear(nY),[]);
   const handleTabChange=(nT:"Summary"|"Buildings")=>setActiveSidebarTab(nT);
-  // --- Akhir Logika Fetching Data ---
 
   if (isAuthLoading) {
     return (
@@ -85,7 +84,7 @@ export default function HomePage() {
         <link rel="icon" href="/logo-itb.svg" />
       </Head>
       <div className="min-h-screen bg-slate-100 flex flex-col relative overflow-hidden font-sans">
-        {/* --- Navbar yang Diperbarui --- */}
+        {/* --- Navbar --- */}
         <nav className="bg-white/80 backdrop-blur-md shadow-sm z-30 sticky top-0 h-16 border-b border-slate-200/80">
           <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
             <div className="flex items-center justify-between h-full">
@@ -108,7 +107,7 @@ export default function HomePage() {
                 <Link href="/" legacyBehavior><a className="text-slate-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">Map View</a></Link>
                 <Link href="/carbon-dashboard" legacyBehavior><a className="text-slate-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">Dashboard</a></Link>
                 {isAuthenticated && (
-                  <Link href="/device-table" legacyBehavior><a className="text-slate-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">Devices</a></Link>
+                  <Link href="/device-table" legacyBehavior><a className="text-slate-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">Input</a></Link>
                 )}
                 <Link href="/about" legacyBehavior><a className="text-slate-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">About</a></Link>
               </div>
@@ -157,7 +156,7 @@ export default function HomePage() {
                         <nav className="mt-6 px-2 space-y-1">
                             <Link href="/" legacyBehavior><a onClick={() => setIsMobileNavOpen(false)} className="group flex items-center px-3 py-3 text-base font-medium rounded-md text-gray-900 hover:bg-blue-50 hover:text-blue-600">Map View</a></Link>
                             <Link href="/carbon-dashboard" legacyBehavior><a onClick={() => setIsMobileNavOpen(false)} className="group flex items-center px-3 py-3 text-base font-medium rounded-md text-gray-900 hover:bg-blue-50 hover:text-blue-600">Dashboard</a></Link>
-                            {isAuthenticated && (<Link href="/device-table" legacyBehavior><a onClick={() => setIsMobileNavOpen(false)} className="group flex items-center px-3 py-3 text-base font-medium rounded-md text-gray-900 hover:bg-blue-50 hover:text-blue-600">Devices</a></Link>)}
+                            {isAuthenticated && (<Link href="/device-table" legacyBehavior><a onClick={() => setIsMobileNavOpen(false)} className="group flex items-center px-3 py-3 text-base font-medium rounded-md text-gray-900 hover:bg-blue-50 hover:text-blue-600">Input</a></Link>)}
                             <Link href="/about" legacyBehavior><a onClick={() => setIsMobileNavOpen(false)} className="group flex items-center px-3 py-3 text-base font-medium rounded-md text-gray-900 hover:bg-blue-50 hover:text-blue-600">About</a></Link>
                             <div className="pt-4 mt-4 border-t border-gray-200">
                                 {isAuthenticated ? (
