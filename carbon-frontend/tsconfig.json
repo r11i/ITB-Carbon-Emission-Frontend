@@ -1,27 +1,31 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
+    "target": "es5",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
+    "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
-    "moduleResolution": "node", // ← diubah dari "bundler"
+    "moduleResolution": "node", // atau "bundler" untuk Next.js 13.4+
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    // --- BAGIAN PENTING ---
+    "baseUrl": "./", // <-- Set baseUrl ke root folder `carbon-frontend`
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["src/*"] // <-- Definisikan @/* sebagai `src/*` relatif terhadap baseUrl
     }
+    // --- AKHIR BAGIAN PENTING ---
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    "src/types/**/*"
-  ],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/**/*.ts", "src/**/*.tsx"], // Pastikan src termasuk
   "exclude": ["node_modules"]
 }
