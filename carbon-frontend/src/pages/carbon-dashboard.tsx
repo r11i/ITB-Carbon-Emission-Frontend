@@ -1,44 +1,40 @@
-// src/pages/carbon-dashboard.tsx
 "use client";
 
 import React, { useEffect, useState, useCallback, ReactNode } from "react";
-import { useRouter } from "next/router";
+import Layout from "@/components/Layout"; // <-- Menggunakan Layout terpusat baru
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, Legend,
   ResponsiveContainer, PieChart, Pie, Cell, TooltipProps, CartesianGrid
 } from "recharts";
 import { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 
-// --- Constants ---
+// --- Constants (Tidak ada perubahan) ---
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-const trendPalette = ["#2563EB"]; // blue-600
-const comparisonPalette = ["#1E3A8A", "#1D4ED8", "#3B82F6", "#60A5FA", "#93C5FD", "#A78BFA", "#7C3AED", "#F472B6"];
+const trendPalette = ["#2563EB"];
+const comparisonPalette = ["#1E3A8A", "#1D4ED8", "#3B82F6", "#60A5FA", "#93C5FD", "#A78BFA", "#7C3AED", "#F472B6", "#10B981", "#F59E0B"];
 const devicePiePalette = ["#10B981", "#F59E0B", "#6366F1", "#8B5CF6", "#EC4899", "#3B82F6", "#F97316", "#14B8A6"];
 const slate = { 50:"#F8FAFC", 100:"#F1F5F9", 200:"#E2E8F0", 300:"#CBD5E1", 400:"#94A3B8", 500:"#64748B", 600:"#475569", 700:"#334155", 800:"#1E293B", 900:"#0F172A"};
 const monthLabels: { [key: number]: string } = {1:"Jan",2:"Feb",3:"Mar",4:"Apr",5:"May",6:"Jun",7:"Jul",8:"Aug",9:"Sep",10:"Oct",11:"Nov",12:"Dec"};
 
-// --- Interfaces ---
+// --- Interfaces (Tidak ada perubahan) ---
 interface DataPoint { year?: string; month?: string; name?: string; total?: number; [key: string]: string | number | undefined; }
-interface CampusData { [campus: string]: { [yearOrMonth: string]: number; }; }
-interface TotalEmissionsByCampus { [campus:string]: number; }
 interface PieSliceData { name: string; value: number; }
 interface RoomData { [roomName: string]: number; }
 interface BuildingData { total_emission: number; rooms: RoomData; }
 interface BuildingJson { [buildingName: string]: BuildingData; }
 
-// --- Helper Functions ---
+// --- Helper Functions (Tidak ada perubahan) ---
 const formatNumber = (num: number | undefined | null, decimals = 0): string => {
   if (num === undefined || num === null || isNaN(num)) return "N/A";
   return num.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 };
 const formatTooltipValue = (value: number): string => `${formatNumber(value, 1)} kg CO₂e`;
 
-// --- Reusable UI Components ---
+// --- Reusable UI Components (Tidak ada perubahan) ---
 const LoadingSpinner: React.FC<{ size?: 'sm' | 'md' | 'lg' }> = ({ size = 'md' }) => {
     const sizeClasses = { sm: 'w-6 h-6', md: 'w-8 h-8', lg: 'w-12 h-12' };
     return <div className={`${sizeClasses[size]} border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto`}></div>;
 };
-
 interface DashboardCardProps { title: string; value: string | number; unit?: string; icon: ReactNode; isLoading?: boolean; }
 const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, unit, icon, isLoading }) => (
     <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow duration-200 min-h-[90px]">
@@ -58,17 +54,16 @@ const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, unit, icon,
         </div>
     </div>
 );
-
-interface ChartContainerProps { title: string; children: ReactNode; isLoading?: boolean; actions?: ReactNode; className?: string; error?: string | null; onZoom?: () => void; }
-const ChartContainer: React.FC<ChartContainerProps> = ({ title, children, isLoading, actions, className = "", error = null, onZoom }) => (
-    <div className={`bg-white rounded-xl p-4 sm:p-5 shadow-sm border border-slate-200/60 relative min-h-[380px] flex flex-col ${className}`}>
+interface ChartContainerProps { title: string; children: ReactNode; isLoading?: boolean; actions?: ReactNode; className?: string; error?: string | null; onZoom?: () => void; noZoom?: boolean; }
+const ChartContainer: React.FC<ChartContainerProps> = ({ title, children, isLoading, actions, className = "", error = null, onZoom, noZoom = false }) => (
+    <div className={`bg-white rounded-xl p-4 sm:p-5 shadow-sm border border-slate-200/60 relative min-h-[420px] flex flex-col ${className}`}>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
             <h2 className="text-base lg:text-lg font-semibold text-slate-800 flex-1 truncate">{title}</h2>
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-4 flex-shrink-0">
                 {actions}
-                {onZoom && !isLoading && !error && (
-                    <button onClick={onZoom} title="View Full Chart" className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-md transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 0h-4m4 0l-5-5" /></svg>
+                {!noZoom && onZoom && !isLoading && !error && (
+                    <button onClick={onZoom} title="View Full Chart" className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors">
+                        View More >
                     </button>
                 )}
             </div>
@@ -80,7 +75,6 @@ const ChartContainer: React.FC<ChartContainerProps> = ({ title, children, isLoad
         </div>
     </div>
 );
-
 const CustomTooltip = ({ active, payload, label }: TooltipProps<ValueType, NameType>) => {
     if (!active || !payload || !payload.length) return null;
     const dataPoint = payload[0].payload;
@@ -110,7 +104,6 @@ const renderCustomizedPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, 
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
     return (<text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="text-[11px] font-bold pointer-events-none drop-shadow-sm">{`${(percent * 100).toFixed(0)}%`}</text>);
 };
-
 interface ChartModalProps { isOpen: boolean; onClose: () => void; title: string; chartData: any[]; chartType: 'bar' | 'pie'; dataKey: string; nameKey?: string; xAxisDataKey?: string; colors?: string[]; }
 const ChartModal: React.FC<ChartModalProps> = ({ isOpen, onClose, title, chartData, chartType, dataKey, nameKey, xAxisDataKey, colors = comparisonPalette }) => {
     if (!isOpen) return null;
@@ -164,132 +157,254 @@ const ChartModal: React.FC<ChartModalProps> = ({ isOpen, onClose, title, chartDa
     );
 };
 
-// --- Main Dashboard Component ---
+// --- Main Dashboard Component (Hooks dan Logic tidak berubah) ---
 const Dashboard = () => {
-    const router = useRouter();
-    // --- Semua state sama, hanya di-collapse ---
-    const [yearlyTrendData, setYearlyTrendData] = useState<DataPoint[]>([]);const [monthlyTrendData, setMonthlyTrendData] = useState<DataPoint[]>([]);const [isLoadingYearlyTrend, setIsLoadingYearlyTrend] = useState(true);const [isLoadingMonthlyTrend, setIsLoadingMonthlyTrend] = useState(false);const [trendChartError, setTrendChartError] = useState<string | null>(null);const [campusPieData, setCampusPieData] = useState<PieSliceData[]>([]);const [isLoadingCampusPie, setIsLoadingCampusPie] = useState(true);const [campusPieError, setCampusPieError] = useState<string | null>(null);const [devicePieData, setDevicePieData] = useState<PieSliceData[]>([]);const [allDeviceDataForModal, setAllDeviceDataForModal] = useState<PieSliceData[]>([]);const [isLoadingDevicePie, setIsLoadingDevicePie] = useState(true);const [devicePieError, setDevicePieError] = useState<string | null>(null);const [allBuildingsChartData, setAllBuildingsChartData] = useState<PieSliceData[]>([]);const [isLoadingAllBuildingsChart, setIsLoadingAllBuildingsChart] = useState(true);const [allBuildingsChartError, setAllBuildingsChartError] = useState<string | null>(null);const [totalEmissions, setTotalEmissions] = useState<number | null>(null);const [isLoadingTotalEmissions, setIsLoadingTotalEmissions] = useState(true);const [topEmittingBuildingName, setTopEmittingBuildingName] = useState<string | null>(null);const [isLoadingTopBuilding, setIsLoadingTopBuilding] = useState(true);const [selectedYearForMonthly, setSelectedYearForMonthly] = useState<string | null>(null);const [chartMode, setChartMode] = useState<"year" | "month">("year");const [availableYears, setAvailableYears] = useState<string[]>([]);const [dashboardSelectedYear, setDashboardSelectedYear] = useState<string>("All");const [isChartModalOpen, setIsChartModalOpen] = useState(false);const [modalChartConfig, setModalChartConfig] = useState<Omit<ChartModalProps, 'isOpen' | 'onClose' > | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [dashboardSelectedYear, setDashboardSelectedYear] = useState<string>("All");
+  const [yearlyTrendData, setYearlyTrendData] = useState<DataPoint[]>([]);
+  const [availableYears, setAvailableYears] = useState<string[]>([]);
+  const [grandTotalEmissions, setGrandTotalEmissions] = useState<number | null>(null);
+  const [monthlyTrendData, setMonthlyTrendData] = useState<DataPoint[]>([]);
+  const [chartMode, setChartMode] = useState<"year" | "month">("year");
+  const [selectedYearForMonthly, setSelectedYearForMonthly] = useState<string | null>(null);
+  const [totalEmissions, setTotalEmissions] = useState<number | null>(null);
+  const [topEmittingBuildingName, setTopEmittingBuildingName] = useState<string | null>(null);
+  const [devicePieData, setDevicePieData] = useState<PieSliceData[]>([]);
+  const [allDeviceDataForModal, setAllDeviceDataForModal] = useState<PieSliceData[]>([]);
+  const [allBuildingsChartData, setAllBuildingsChartData] = useState<PieSliceData[]>([]);
+  const [allBuildingsData, setAllBuildingsData] = useState<BuildingJson | null>(null);
+  const [selectedBuildingForRooms, setSelectedBuildingForRooms] = useState<string>("");
+  const [roomChartData, setRoomChartData] = useState<PieSliceData[]>([]);
+  const [isChartModalOpen, setIsChartModalOpen] = useState(false);
+  const [modalChartConfig, setModalChartConfig] = useState<Omit<ChartModalProps, 'isOpen' | 'onClose' > | null>(null);
+  const fetchApi = useCallback(async <T,>(relativePath: string): Promise<T> => {
+    const fullUrl = `${API_BASE_URL}${relativePath}`;
+    const res = await fetch(fullUrl);
+    if (!res.ok) {
+        const errTxt = await res.text();
+        console.error(`API Error ${res.status} on ${fullUrl}: ${errTxt}`);
+        throw new Error(`Failed to fetch data from ${relativePath}. Status: ${res.status}`);
+    }
+    return res.json() as Promise<T>;
+  }, []);
+  useEffect(() => {
+    const fetchInitialData = async () => {
+        try {
+            const trendJson = await fetchApi<{ emissions: { [c: string]: { [y: string]: number } }, total_emissions?: { [c:string]: number } }>("/emissions/campus?year=All&aggregate=yearly_total");
+            const emissions = trendJson.emissions;
+            const structured: DataPoint[] = [];
+            const yearsSet = new Set<string>();
+            Object.values(emissions).forEach(yearData => { Object.entries(yearData).forEach(([y, val]) => { yearsSet.add(y); let e = structured.find(d => d.year === y); if (!e) { e = { year: y, total: 0 }; structured.push(e); } (e.total as number) += val; }); });
+            let grandTotal = 0;
+            if (trendJson.total_emissions) { grandTotal = Object.values(trendJson.total_emissions).reduce((s, v) => s + v, 0); }
+            else { grandTotal = structured.reduce((s, i) => s + (i.total || 0), 0); }
+            setYearlyTrendData(structured.sort((a, b) => parseInt(a.year!) - parseInt(b.year!)));
+            setGrandTotalEmissions(grandTotal);
+            setAvailableYears(Array.from(yearsSet).sort((a,b) => parseInt(b) - parseInt(a)));
+        } catch (err: any) { setError(err.message); }
+    };
+    fetchInitialData();
+  }, [fetchApi]);
+  useEffect(() => {
+    const fetchFilteredData = async () => {
+        setIsLoading(true);
+        setError(null);
+        setSelectedBuildingForRooms("");
+        setRoomChartData([]);
+        try {
+            const buildingJson = await fetchApi<{ buildings: BuildingJson }>(`/emissions/building?year=${encodeURIComponent(dashboardSelectedYear)}`);
+            const buildings = buildingJson.buildings;
+            const buildingRawData = Object.entries(buildings).map(([name, data]) => ({ name, value: data.total_emission })).filter(item => item.value > 0).sort((a, b) => b.value - a.value);
+            const currentTotal = buildingRawData.reduce((sum, item) => sum + item.value, 0);
+            setTotalEmissions(currentTotal);
+            setTopEmittingBuildingName(buildingRawData.length > 0 ? buildingRawData[0].name : null);
+            setAllBuildingsChartData(buildingRawData);
+            setAllBuildingsData(buildings);
+            const deviceJson = await fetchApi<{ device_emissions?: { [key: string]: number } }>(`/emissions/device?year=${encodeURIComponent(dashboardSelectedYear)}`);
+            if (deviceJson.device_emissions) {
+                const rawDeviceData = Object.entries(deviceJson.device_emissions).map(([name, value]) => ({ name, value })).filter(item => item.value > 0).sort((a, b) => b.value - a.value);
+                setAllDeviceDataForModal(rawDeviceData);
+                let pieDataStructured: PieSliceData[] = [], otherValue = 0, TOP_N_PIE_DEVICES = 6;
+                rawDeviceData.forEach((item, i) => i < TOP_N_PIE_DEVICES ? pieDataStructured.push(item) : otherValue += item.value);
+                if (otherValue > 0) pieDataStructured.push({ name: "Others", value: otherValue });
+                setDevicePieData(pieDataStructured);
+            } else {
+                setDevicePieData([]); setAllDeviceDataForModal([]);
+            }
+        } catch (err: any) { setError(err.message); } finally { setIsLoading(false); }
+    };
+    fetchFilteredData();
+  }, [dashboardSelectedYear, fetchApi]);
+  useEffect(() => {
+    if (selectedBuildingForRooms && allBuildingsData) {
+        const building = allBuildingsData[selectedBuildingForRooms];
+        if (building?.rooms) {
+            const roomsData = Object.entries(building.rooms).map(([name, value]) => ({ name, value })).filter(item => item.value > 0).sort((a, b) => b.value - a.value);
+            setRoomChartData(roomsData);
+        } else { setRoomChartData([]); }
+    } else { setRoomChartData([]); }
+  }, [selectedBuildingForRooms, allBuildingsData]);
+  const fetchMonthlyTrend = useCallback(async (year: string) => {
+    setSelectedYearForMonthly(year);
+    setChartMode("month");
+    setError(null);
+    try {
+        const json = await fetchApi<{ emissions: { [c: string]: { [m: string]: number }} }>(`/emissions/campus?year=${year}&aggregate=monthly_total`);
+        const structured: DataPoint[] = [];
+        Object.values(json.emissions).forEach(monthData => {Object.entries(monthData).forEach(([month, val]) => { let e = structured.find(d => d.month === month); if (!e) { e = { month, total: 0 }; structured.push(e); } (e.total as number) += val; });});
+        setMonthlyTrendData(structured.sort((a, b) => parseInt(a.month!) - parseInt(b.month!)));
+    } catch (err: any) { setError(err.message); }
+  }, [fetchApi]);
 
-    // --- Semua fungsi fetch sama, hanya di-collapse ---
-    const fetchApi = useCallback(async <T,>(relativePath: string): Promise<T> => {const fullUrl = `${API_BASE_URL}${relativePath}`;const res = await fetch(fullUrl);if (!res.ok) {const errTxt = await res.text();console.error(`API Error ${res.status} on ${fullUrl}: ${errTxt}`);throw new Error(`API Error ${res.status}`)}return res.json() as Promise<T>;}, []);
-    const fetchYearlyTrend = useCallback(async () => {setIsLoadingYearlyTrend(true); setTrendChartError(null); setIsLoadingTotalEmissions(true);try {const json = await fetchApi<{ emissions: CampusData, total_emissions?: TotalEmissionsByCampus }>("/emissions/campus?year=All&aggregate=yearly_total");const emissions = json.emissions;const structured: DataPoint[] = [];let currentTotalEmissions = 0;const yearsSet = new Set<string>();Object.values(emissions).forEach(yearData => {Object.entries(yearData).forEach(([year, emissionVal]) => {yearsSet.add(year);let existing = structured.find((d) => d.year === year);if (!existing) { existing = { year, total: 0 }; structured.push(existing); }(existing.total as number) += emissionVal;});});if (json.total_emissions && Object.keys(json.total_emissions).length > 0) {currentTotalEmissions = Object.values(json.total_emissions).reduce((sum, val) => sum + val, 0);} else {currentTotalEmissions = structured.reduce((sum, item) => sum + (item.total || 0), 0);}structured.sort((a, b) => parseInt(a.year!) - parseInt(b.year!));setYearlyTrendData(structured);setTotalEmissions(currentTotalEmissions);setAvailableYears(Array.from(yearsSet).sort((a,b) => parseInt(b) - parseInt(a)));} catch (err: any) { setTrendChartError(err.message); setTotalEmissions(null); }finally { setIsLoadingYearlyTrend(false); setIsLoadingTotalEmissions(false); }}, [fetchApi]);
-    const fetchMonthlyTrend = useCallback(async (year: string) => {setSelectedYearForMonthly(year); setIsLoadingMonthlyTrend(true); setTrendChartError(null); setChartMode("month");try {const json = await fetchApi<{ emissions: CampusData }>(`/emissions/campus?year=${year}&aggregate=monthly_total`);const emissions = json.emissions;const structured: DataPoint[] = [];Object.values(emissions).forEach(monthData => {Object.entries(monthData).forEach(([month, emissionVal]) => {let existing = structured.find((d) => d.month === month);if (!existing) { existing = { month, total: 0 }; structured.push(existing); }(existing.total as number) += emissionVal;});});structured.sort((a, b) => parseInt(a.month!) - parseInt(b.month!));setMonthlyTrendData(structured);} catch (err: any) { setTrendChartError(err.message); }finally { setIsLoadingMonthlyTrend(false); }}, [fetchApi]);
-    const fetchAllBuildingsBar = useCallback(async (year: string = "All") => {setIsLoadingAllBuildingsChart(true); setAllBuildingsChartError(null); setIsLoadingTopBuilding(true);try {const apiUrl = `/emissions/building?year=${encodeURIComponent(year)}`;const json = await fetchApi<{ buildings: BuildingJson }>(apiUrl);const buildings = json.buildings;const rawData = Object.entries(buildings).map(([name, data]) => ({ name, value: data.total_emission })).filter(item => item.value > 0);rawData.sort((a, b) => b.value - a.value);setTopEmittingBuildingName(rawData.length > 0 ? rawData[0].name : null);setAllBuildingsChartData(rawData);} catch (err: any) { setAllBuildingsChartError(err.message); setAllBuildingsChartData([]); setTopEmittingBuildingName(null); }finally { setIsLoadingAllBuildingsChart(false); setIsLoadingTopBuilding(false); }}, [fetchApi]);
-    const fetchDevicePie = useCallback(async (year: string = "All") => {setIsLoadingDevicePie(true); setDevicePieError(null);try {const apiUrl = `/emissions/device?year=${encodeURIComponent(year)}`;const json = await fetchApi<{ device_emissions?: { [key: string]: number } }>(apiUrl);if (!json.device_emissions) { setDevicePieData([]); setAllDeviceDataForModal([]); setIsLoadingDevicePie(false); return; }const rawDeviceData = Object.entries(json.device_emissions).map(([name, value]) => ({ name, value })).filter(item => item.value > 0);rawDeviceData.sort((a, b) => b.value - a.value);setAllDeviceDataForModal(rawDeviceData);let pieDataStructured: PieSliceData[] = [];let otherValue = 0;const TOP_N_PIE_DEVICES = 6;for (let i = 0; i < rawDeviceData.length; i++) {if (i < TOP_N_PIE_DEVICES) pieDataStructured.push(rawDeviceData[i]);else otherValue += rawDeviceData[i].value;}if (otherValue > 0) pieDataStructured.push({ name: "Others", value: otherValue });setDevicePieData(pieDataStructured);} catch (err: any) { setDevicePieError(err.message); setDevicePieData([]); setAllDeviceDataForModal([]); }finally { setIsLoadingDevicePie(false); }}, [fetchApi]);
-    useEffect(() => {fetchYearlyTrend(); fetchAllBuildingsBar("All"); fetchDevicePie("All");}, [fetchYearlyTrend, fetchAllBuildingsBar, fetchDevicePie]);
-    useEffect(() => {if (!isLoadingYearlyTrend && availableYears.length > 0) {fetchAllBuildingsBar(dashboardSelectedYear);fetchDevicePie(dashboardSelectedYear);}}, [dashboardSelectedYear, isLoadingYearlyTrend, availableYears, fetchAllBuildingsBar, fetchDevicePie]);
-    const averageMonthlyEmission = totalEmissions !== null && yearlyTrendData.length > 0 ? totalEmissions / (yearlyTrendData.length * 12) : null;
-    const handleOpenBuildingChartModal = () => {setModalChartConfig({title: `All Building Emissions (${dashboardSelectedYear})`, chartData: allBuildingsChartData, chartType: 'bar', dataKey: 'value', xAxisDataKey: 'name', colors: comparisonPalette}); setIsChartModalOpen(true);};
-    const handleOpenDeviceChartModal = () => {setModalChartConfig({title: `All Device Emissions (${dashboardSelectedYear})`, chartData: allDeviceDataForModal, chartType: 'pie', dataKey: 'value', nameKey: 'name', colors: devicePiePalette}); setIsChartModalOpen(true);};
-  
-    return (
-        <div className="p-4 md:p-6 lg:p-8 bg-slate-50 min-h-screen font-sans">
-            <header className="mb-8">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-                    <div className="flex-1">
-                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">
-                            Carbon Emissions Dashboard
-                        </h1>
-                        <p className="text-slate-500 mt-1">An overview of ITB's carbon footprint.</p>
-                    </div>
-                    <div className="flex items-center gap-4 w-full sm:w-auto">
-                        <select
-                            value={dashboardSelectedYear}
-                            onChange={(e) => setDashboardSelectedYear(e.target.value)}
-                            className="w-full sm:w-auto text-sm px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition"
-                            disabled={isLoadingYearlyTrend || (availableYears.length <= 1 && !isLoadingYearlyTrend)}
-                        >
-                            <option value="All">All Years</option>
-                            {availableYears.filter(y => y !== "All").map(year => (<option key={year} value={year}>{year}</option>))}
-                        </select>
-                        <button onClick={() => router.push("/")} className="flex-shrink-0 flex items-center gap-1.5 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium px-3 py-2 rounded-lg hover:bg-slate-100">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" /></svg>
-                            Back
+  const displayedTotalEmissions = dashboardSelectedYear === "All" && grandTotalEmissions !== null ? grandTotalEmissions : totalEmissions;
+  const averageMonthlyEmission = dashboardSelectedYear === "All" 
+      ? (grandTotalEmissions && availableYears.length > 0 ? grandTotalEmissions / (availableYears.length * 12) : null)
+      : (totalEmissions !== null ? totalEmissions / 12 : null);
+
+  const handleOpenBuildingChartModal = () => {setModalChartConfig({title: `All Building Emissions (${dashboardSelectedYear})`, chartData: allBuildingsChartData, chartType: 'bar', dataKey: 'value', xAxisDataKey: 'name', colors: comparisonPalette}); setIsChartModalOpen(true);};
+  const handleOpenDeviceChartModal = () => {setModalChartConfig({title: `All Device Emissions (${dashboardSelectedYear})`, chartData: allDeviceDataForModal, chartType: 'pie', dataKey: 'value', nameKey: 'name', colors: devicePiePalette}); setIsChartModalOpen(true);};
+  const handleOpenRoomChartModal = () => {setModalChartConfig({title: `Room Emissions in ${selectedBuildingForRooms} (${dashboardSelectedYear})`, chartData: roomChartData, chartType: 'bar', dataKey: 'value', xAxisDataKey: 'name', colors: comparisonPalette}); setIsChartModalOpen(true);};
+
+  return (
+    <Layout
+      title="Carbon Emissions Dashboard"
+      subtitle="An overview of ITB's carbon footprint."
+      headerActions={
+          <div className="relative w-full sm:w-auto">
+              <select
+                  value={dashboardSelectedYear}
+                  onChange={(e) => setDashboardSelectedYear(e.target.value)}
+                  className="w-full sm:w-40 appearance-none text-sm pl-3 pr-10 py-2 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition"
+                  disabled={isLoading || availableYears.length === 0}
+              >
+                  <option value="All">All Years</option>
+                  {availableYears.map(year => (<option key={year} value={year}>{year}</option>))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 20 20" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M6 8l4 4 4-4" /></svg>
+              </div>
+          </div>
+      }
+    >
+      {/* Kartu Statistik */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+          <DashboardCard title={`Total Emissions (${dashboardSelectedYear})`} value={displayedTotalEmissions ?? '-'} unit="kg CO₂e" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg>} isLoading={isLoading} />
+          <DashboardCard title={`Top Emitter (${dashboardSelectedYear})`} value={topEmittingBuildingName ?? 'N/A'} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H5a1 1 0 110-2V4zm3 1h2v1H7V5zm0 2h2v1H7V7zm0 2h2v1H7V9zm0 2h2v1H7v-1zm4-6h2v1h-2V5zm0 2h2v1h-2V7zm0 2h2v1h-2V9zm0 2h2v1h-2v-1z" clipRule="evenodd" /></svg>} isLoading={isLoading} />
+          <DashboardCard title={`Avg. Monthly (${dashboardSelectedYear})`} value={averageMonthlyEmission ?? '-'} unit="kg CO₂e" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>} isLoading={isLoading} />
+      </div>
+
+      {/* Grid untuk Chart */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ChartContainer
+            title={chartMode === 'year' ? "Annual Emissions Trend (All Campuses)" : `Monthly Trend for ${selectedYearForMonthly}`}
+            isLoading={yearlyTrendData.length === 0 && !error} error={error} noZoom={true}
+            actions={
+                <div className="flex items-center space-x-2">
+                    {chartMode === 'month' ? (
+                        <button onClick={() => { setChartMode("year"); setSelectedYearForMonthly(null); }} disabled={isLoading} className="flex items-center text-xs px-3 py-1.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-md shadow-sm hover:bg-slate-50 disabled:opacity-50">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                            Annual
                         </button>
+                    ) : availableYears.slice(0, 3).map(year => (
+                        <button key={year} onClick={() => fetchMonthlyTrend(year)} disabled={isLoading} className="px-3 py-1 text-xs rounded-full font-medium transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-50">{year}</button>
+                    ))}
+                </div>
+            }
+        >
+            <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartMode === 'year' ? yearlyTrendData.map(d => ({...d, name: d.year})) : monthlyTrendData.map(d => ({...d, name: monthLabels[parseInt(d.month!)] || d.month}))} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={slate[200]} />
+                    <XAxis dataKey="name" tick={{ fill: slate[500], fontSize: 11 }} axisLine={{ stroke: slate[300] }} tickLine={false} padding={{ left: 10, right: 10 }} />
+                    <YAxis tick={{ fill: slate[500], fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => formatNumber(v,0)} width={50} />
+                    <Tooltip content={<CustomTooltip />} cursor={{ stroke: slate[400], strokeDasharray: '4 4' }}/>
+                    <Legend wrapperStyle={{fontSize: '12px', color: slate[600]}}/>
+                    <Line type="monotone" dataKey="total" name="Total Emissions" stroke={trendPalette[0]} strokeWidth={2.5} dot={{ r: 4, fill: trendPalette[0], strokeWidth: 2, stroke: 'white' }} activeDot={{ r: 6 }} />
+                </LineChart>
+            </ResponsiveContainer>
+        </ChartContainer>
+
+        <ChartContainer
+            title={`Emissions by Device Type (${dashboardSelectedYear})`}
+            isLoading={isLoading} error={error}
+            onZoom={allDeviceDataForModal.length > 0 ? handleOpenDeviceChartModal : undefined}
+        >
+            <ResponsiveContainer width="100%" height="100%">
+                <PieChart margin={{ top: 0, right: 0, bottom: 30, left: 0 }}>
+                    <Pie data={devicePieData} dataKey="value" nameKey="name" cx="50%" cy="45%" outerRadius="80%" labelLine={false} label={renderCustomizedPieLabel} stroke={slate[50]} strokeWidth={2}>
+                        {devicePieData.map((_, index) => (<Cell key={`cell-dev-${index}`} fill={devicePiePalette[index % devicePiePalette.length]} />))}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ paddingTop: '15px', fontSize: '12px', lineHeight: '18px' }} formatter={(v) => <span className="text-slate-600">{v}</span>} iconSize={10} />
+                </PieChart>
+            </ResponsiveContainer>
+        </ChartContainer>
+
+        <ChartContainer
+            title={`Top 10 Emitters (Buildings, ${dashboardSelectedYear})`}
+            isLoading={isLoading} error={error}
+            onZoom={allBuildingsChartData.length > 0 ? handleOpenBuildingChartModal : undefined}
+        >
+            <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={allBuildingsChartData.slice(0, 10)} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={slate[200]} horizontal={false} />
+                    <XAxis type="number" tick={{ fill: slate[500], fontSize: 11 }} axisLine={{ stroke: slate[300] }} tickLine={false} tickFormatter={(v) => formatNumber(v,0)} />
+                    <YAxis type="category" dataKey="name" width={140} tick={{ fill: slate[600], fontSize: 11, width: 130 }} interval={0} axisLine={false} tickLine={false} />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: slate[100] }}/>
+                    <Bar dataKey="value" name="Emissions" radius={[0, 4, 4, 0]} barSize={16}>
+                        {allBuildingsChartData.slice(0, 10).map((_, index) => ( <Cell key={`cell-bldg-${index}`} fill={comparisonPalette[index % comparisonPalette.length]} /> ))}
+                    </Bar>
+                </BarChart>
+            </ResponsiveContainer>
+        </ChartContainer>
+
+        <ChartContainer
+            title={`Top 10 Emitters (Rooms) ${selectedBuildingForRooms ? `in ${selectedBuildingForRooms}` : ''}`}
+            isLoading={isLoading && !selectedBuildingForRooms} error={error}
+            onZoom={roomChartData.length > 0 ? handleOpenRoomChartModal : undefined}
+            actions={
+                <div className="relative w-48">
+                    <select
+                        value={selectedBuildingForRooms}
+                        onChange={e => setSelectedBuildingForRooms(e.target.value)}
+                        disabled={isLoading || !allBuildingsData}
+                        className="w-full appearance-none truncate text-xs pl-3 pr-8 py-1.5 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white transition"
+                    >
+                        <option value="">Select Building</option>
+                        {allBuildingsData && Object.keys(allBuildingsData).sort().map(name => (
+                            <option key={name} value={name}>{name}</option>
+                        ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
                     </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                    <DashboardCard title="Total Tracked Emissions" value={totalEmissions ?? '-'} unit="kg CO₂e" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg>} isLoading={isLoadingTotalEmissions} />
-                    <DashboardCard title="Top Emitter (Building)" value={topEmittingBuildingName ?? 'N/A'} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H5a1 1 0 110-2V4zm3 1h2v1H7V5zm0 2h2v1H7V7zm0 2h2v1H7V9zm0 2h2v1H7v-1zm4-6h2v1h-2V5zm0 2h2v1h-2V7zm0 2h2v1h-2V9zm0 2h2v1h-2v-1z" clipRule="evenodd" /></svg>} isLoading={isLoadingTopBuilding} />
-                    <DashboardCard title="Avg. Monthly Emission" value={averageMonthlyEmission ?? '-'} unit="kg CO₂e" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>} isLoading={isLoadingTotalEmissions} />
-                </div>
-            </header>
-
-            <main className="space-y-6">
-                <ChartContainer
-                    title={chartMode === 'year' ? "Annual Emissions Trend (All Campuses)" : `Monthly Emissions Trend for ${selectedYearForMonthly}`}
-                    isLoading={chartMode === 'year' ? isLoadingYearlyTrend : isLoadingMonthlyTrend}
-                    error={trendChartError}
-                    actions={
-                        <div className="flex items-center space-x-2">
-                            {chartMode === 'year' && availableYears.filter(y => y !== "All").slice(0, 4).map(year => (
-                                <button key={year} onClick={() => fetchMonthlyTrend(year)} disabled={isLoadingMonthlyTrend} className="px-3 py-1 text-xs rounded-full font-medium transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-50">{year}</button>
-                            ))}
-                            {chartMode === 'month' && (
-                                <button onClick={() => { setChartMode("year"); setSelectedYearForMonthly(null); }} disabled={isLoadingYearlyTrend} className="flex items-center text-xs px-3 py-1.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-md shadow-sm hover:bg-slate-50 disabled:opacity-50">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                                    Annual Trend
-                                </button>
-                            )}
-                        </div>
-                    }
-                >
-                    <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartMode === 'year' ? yearlyTrendData.map(d => ({...d, name: d.year})) : monthlyTrendData.map(d => ({...d, name: monthLabels[parseInt(d.month!)] || d.month}))} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke={slate[200]} />
-                            <XAxis dataKey="name" tick={{ fill: slate[500], fontSize: 11 }} axisLine={{ stroke: slate[300] }} tickLine={false} padding={{ left: 10, right: 10 }} />
-                            <YAxis tick={{ fill: slate[500], fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => formatNumber(v,0)} width={50} />
-                            <Tooltip content={<CustomTooltip />} cursor={{ stroke: slate[400], strokeDasharray: '4 4' }}/>
-                            <Legend wrapperStyle={{fontSize: '12px', color: slate[600]}}/>
-                            <Line type="monotone" dataKey="total" name="Total Emissions" stroke={trendPalette[0]} strokeWidth={2.5} dot={{ r: 4, fill: trendPalette[0], strokeWidth: 2, stroke: 'white' }} activeDot={{ r: 6 }} />
-                        </LineChart>
-                    </ResponsiveContainer>
-                </ChartContainer>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <ChartContainer
-                        title={`Top 10 Emitters (Buildings, ${dashboardSelectedYear})`}
-                        isLoading={isLoadingAllBuildingsChart}
-                        error={allBuildingsChartError}
-                        onZoom={allBuildingsChartData.length > 0 ? handleOpenBuildingChartModal : undefined}
-                    >
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={allBuildingsChartData.slice(0, 10)} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke={slate[200]} horizontal={false} />
-                                <XAxis type="number" tick={{ fill: slate[500], fontSize: 11 }} axisLine={{ stroke: slate[300] }} tickLine={false} tickFormatter={(v) => formatNumber(v,0)} />
-                                <YAxis type="category" dataKey="name" width={140} tick={{ fill: slate[600], fontSize: 11, width: 130 }} interval={0} axisLine={false} tickLine={false} />
-                                <Tooltip content={<CustomTooltip />} cursor={{ fill: slate[100] }}/>
-                                <Bar dataKey="value" name="Emissions" radius={[0, 4, 4, 0]} barSize={16}>
-                                    {allBuildingsChartData.slice(0, 10).map((_, index) => ( <Cell key={`cell-bldg-${index}`} fill={comparisonPalette[index % comparisonPalette.length]} /> ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </ChartContainer>
-
-                    <ChartContainer
-                        title={`Emissions by Device Type (${dashboardSelectedYear})`}
-                        isLoading={isLoadingDevicePie}
-                        error={devicePieError}
-                        onZoom={allDeviceDataForModal.length > 0 ? handleOpenDeviceChartModal : undefined}
-                    >
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart margin={{ top: 0, right: 0, bottom: 30, left: 0 }}>
-                                <Pie data={devicePieData} dataKey="value" nameKey="name" cx="50%" cy="45%" outerRadius="80%" labelLine={false} label={renderCustomizedPieLabel} stroke={slate[50]} strokeWidth={2}>
-                                    {devicePieData.map((_, index) => (<Cell key={`cell-dev-${index}`} fill={devicePiePalette[index % devicePiePalette.length]} />))}
-                                </Pie>
-                                <Tooltip content={<CustomTooltip />} />
-                                <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ paddingTop: '15px', fontSize: '12px', lineHeight: '18px' }} formatter={(v) => <span className="text-slate-600">{v}</span>} iconSize={10} />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </ChartContainer>
-                </div>
-            </main>
-
-            {modalChartConfig && (
-                <ChartModal isOpen={isChartModalOpen} onClose={() => setIsChartModalOpen(false)} {...modalChartConfig} />
+            }
+        >
+            {!selectedBuildingForRooms ? (
+                <div className="flex items-center justify-center h-full text-slate-500 text-sm">Please select a building to view room data.</div>
+            ) : roomChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={roomChartData.slice(0, 10)} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={slate[200]} horizontal={false} />
+                        <XAxis type="number" tick={{ fill: slate[500], fontSize: 11 }} axisLine={{ stroke: slate[300] }} tickLine={false} tickFormatter={(v) => formatNumber(v,0)} />
+                        <YAxis type="category" dataKey="name" width={140} tick={{ fill: slate[600], fontSize: 11, width: 130 }} interval={0} axisLine={false} tickLine={false} />
+                        <Tooltip content={<CustomTooltip />} cursor={{ fill: slate[100] }}/>
+                        <Bar dataKey="value" name="Emissions" radius={[0, 4, 4, 0]} barSize={16}>
+                            {roomChartData.slice(0, 10).map((_, index) => ( <Cell key={`cell-room-${index}`} fill={comparisonPalette[index % comparisonPalette.length]} /> ))}
+                        </Bar>
+                    </BarChart>
+                </ResponsiveContainer>
+            ) : (
+                <div className="flex items-center justify-center h-full text-slate-500 text-sm">No room emission data for this building.</div>
             )}
-        </div>
-    );
+        </ChartContainer>
+      </div>
+
+      {modalChartConfig && (
+          <ChartModal isOpen={isChartModalOpen} onClose={() => setIsChartModalOpen(false)} {...modalChartConfig} />
+      )}
+    </Layout>
+  );
 };
 
 export default Dashboard;
