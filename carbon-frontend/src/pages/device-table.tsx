@@ -99,7 +99,7 @@ export default function DeviceInputPage() {
   };
 
   if (isAuthLoading) { return <div className="min-h-screen flex items-center justify-center bg-slate-100"><SpinnerMini className="text-blue-500 h-10 w-10" /><p className="ml-3 text-slate-600">Verifying access...</p></div>; }
-  if (!isAuthenticated) { return <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 p-6"><h1 className="text-2xl font-semibold mb-4 text-slate-800">Access Denied</h1><p className="mb-6 text-slate-600">Please login to access the data input page.</p><Link href="/login?redirectTo=/device-input" legacyBehavior><a className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm">Login</a></Link></div>;}
+  if (!isAuthenticated) { return <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 p-6"><h1 className="text-2xl font-semibold mb-4 text-slate-800">Access Denied</h1><p className="mb-6 text-slate-600">Please login to access the data input page.</p><Link href="/login?redirectTo=/device-table" legacyBehavior><a className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm">Login</a></Link></div>;}
 
   return (
         <Layout

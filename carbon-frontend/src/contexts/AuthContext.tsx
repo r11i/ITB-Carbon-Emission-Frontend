@@ -2,17 +2,17 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useRouter, usePathname } from 'next/navigation'; // Untuk App Router. Ganti ke 'next/router' jika Pages Router
+import { useRouter } from 'next/navigation';
 
 interface UserData {
   id: string;
   email: string;
-  role?: string; // Role akan diisi dari API login
+  role?: string;
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  isAdmin: boolean; // Ditentukan berdasarkan user.role === 'admin'
+  isAdmin: boolean;
   user: UserData | null;
   login: (token: string, userData: UserData) => void;
   logout: () => void;
@@ -26,8 +26,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter(); // atau use useRouter dari 'next/router' jika Pages Router
-  const pathname = usePathname(); // atau router.pathname jika Pages Router
+  const router = useRouter();
 
   useEffect(() => {
     console.log("[AuthContext] Initializing auth state...");
@@ -64,14 +63,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     router.push(redirectTo || '/');
   };
 
+  // --- PERUBAHAN DI SINI ---
   const logout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('authUser');
     setUser(null);
     setIsAuthenticated(false);
     setIsAdmin(false);
-    console.log("[AuthContext] User logged out.");
-    router.push('/login');
+    console.log("[AuthContext] User logged out, staying on the current page.");
   };
 
   return (
