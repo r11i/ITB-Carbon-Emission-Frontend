@@ -3,7 +3,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-// PERUBAHAN: Gunakan usePathname dari next/navigation untuk kompatibilitas App Router
 import { usePathname } from "next/navigation"; 
 import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
@@ -35,7 +34,6 @@ const DropdownItem: React.FC<DropdownItemProps> = ({ href, onClick, children }) 
 
 // --- Komponen Navbar Utama ---
 const Navbar = () => {
-  // PERUBAHAN: Gunakan usePathname() untuk mendapatkan path URL saat ini
   const pathname = usePathname(); 
   const { isAuthenticated, user, logout } = useAuth();
   const isSuperAdmin = isAuthenticated && user?.email === ADMIN_EMAIL;
@@ -76,7 +74,6 @@ const Navbar = () => {
               {navItems.map((item) => (
                 (item.auth && !isAuthenticated) ? null : (
                   <Link href={item.href} key={item.name} legacyBehavior>
-                     {/* PERUBAHAN: Gunakan `pathname` untuk mengecek link aktif */}
                     <a className={`relative px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                         pathname === item.href ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'
                     }`}>
@@ -94,13 +91,24 @@ const Navbar = () => {
               ))}
             </div>
 
-            {/* Right Section (tidak ada perubahan logika) */}
+            {/* Right Section (DENGAN PERUBAHAN) */}
             <div className="hidden md:flex md:items-center md:space-x-4">
               {isAuthenticated ? (
                 <div className="relative">
-                  <button onClick={() => setIsUserDropdownOpen(prev => !prev)} className="flex items-center text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                  {/* PERUBAHAN ADA DI DALAM TOMBOL INI */}
+                  <button onClick={() => setIsUserDropdownOpen(prev => !prev)} className="flex items-center text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 pl-2 pr-3 py-1.5 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                    {/* IKON PROFIL DITAMBAHKAN DI SINI */}
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 mr-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-600" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                        </svg>
+                    </span>
+                    
+                    {/* Nama pengguna */}
                     {user?.email ? user.email.split('@')[0] : "Menu"}
-                    <svg className={`ml-1 h-4 w-4 transition-transform duration-200 ${isUserDropdownOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                    
+                    {/* Ikon panah dropdown */}
+                    <svg className={`ml-2 h-4 w-4 transition-transform duration-200 ${isUserDropdownOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
                   </button>
                   {isUserDropdownOpen && (
                     <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40" onMouseLeave={() => setIsUserDropdownOpen(false)}>
@@ -120,7 +128,7 @@ const Navbar = () => {
         </div>
       </nav>
 
-      {/* Mobile Navigation Panel */}
+      {/* Mobile Navigation Panel (tidak ada perubahan) */}
       {isMobileNavOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden" role="dialog" aria-modal="true">
           <div className="fixed inset-0 bg-gray-800 bg-opacity-75" onClick={() => setIsMobileNavOpen(false)} aria-hidden="true" />
@@ -137,7 +145,6 @@ const Navbar = () => {
                 {navItems.map(item => (
                   (item.auth && !isAuthenticated) ? null : (
                     <Link href={item.href} key={item.name} legacyBehavior>
-                         {/* PERUBAHAN: Gunakan `pathname` untuk mengecek link aktif */}
                         <a onClick={handleMobileLinkClick} className={`group flex items-center px-3 py-3 text-base font-medium rounded-md ${
                             pathname === item.href ? 'text-blue-600 bg-blue-100' : 'text-gray-900 hover:bg-blue-50 hover:text-blue-600'
                         }`}>{item.name}</a>
