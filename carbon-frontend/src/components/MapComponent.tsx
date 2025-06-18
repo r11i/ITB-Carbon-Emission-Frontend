@@ -92,9 +92,6 @@ export default function MapComponent({
           <div class="min-w-[220px]">
             <h3 class="text-lg font-bold text-gray-800 mb-1">${location.name}</h3>
             <p class="text-sm text-gray-600 mb-2">${location.address}</p>
-            <button class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-1 px-3 rounded transition-colors">
-              View Emissions Data
-            </button>
           </div>
         `, {
           autoClose: false,       // Penting: jangan tutup otomatis saat popup lain dibuka (meski tidak relevan untuk 1 marker)
@@ -134,11 +131,6 @@ export default function MapComponent({
             marker.setIcon(markerIcon);
           }, 300);
         });
-
-        // --- MODIFIKASI: Hapus event mouseover dan mouseout ---
-        // marker.on('mouseover', ...); // Dihapus
-        // marker.on('mouseout', ...);  // Dihapus
-        // --- AKHIR MODIFIKASI ---
 
         marker.on('popupclose', () => {
           // Event ini akan terpanggil ketika popup ditutup (oleh 'X' atau oleh map.closePopup())
