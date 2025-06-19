@@ -1,27 +1,21 @@
-// pages/register.tsx (User Management Page for Admin)
-"use client"; // Jika Anda menggunakan App Router, jika Pages Router, ini tidak perlu
-
+// pages/register.tsx
 import { useState, useEffect } from "react";
-import { useRouter } from "next/router"; // Gunakan next/router untuk Pages Router
-import Link from "next/link"; // Mungkin tidak perlu jika admin tidak register dirinya sendiri
+import { useRouter } from "next/router";
 import { useAuth } from "@/contexts/AuthContext";
+import Navbar from "@/components/Navbar";
 
 export default function AdminUserRegisterPage() {
   const [form, setForm] = useState({ username: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
-  const { isAuthenticated, isAdmin, isLoading: isAuthLoading } = useAuth();
+  const { isSuperAdmin, isLoading: isAuthLoading } = useAuth();
 
-  // Proteksi Route
   useEffect(() => {
-    if (!isAuthLoading) {
-      if (!isAuthenticated || !isAdmin) {
-        router.replace("/login?message=Admin access required for user management.");
-      }
+    if (!isAuthLoading && !isSuperAdmin) {
+      router.replace("/login?message=Super Admin access required.");
     }
-  }, [isAuthenticated, isAdmin, isAuthLoading, router]);
+  }, [isSuperAdmin, isAuthLoading, router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -32,78 +26,73 @@ export default function AdminUserRegisterPage() {
     e.preventDefault();
     setLoading(true);
     setMessage("");
-
-    if (form.password.length < 6) {
-      setMessage("❌ Password must be at least 6 characters long.");
-      setLoading(false);
-      return;
-    }
-
     try {
       const token = localStorage.getItem('authToken');
-      if (!token) {
-          setMessage("❌ Admin not authenticated. Please login again.");
-          setLoading(false);
-          // Mungkin redirect ke login admin
-          return;
-      }
+      if (!token) throw new Error("Authentication token not found.");
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/users/register`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` // KIRIM TOKEN ADMIN
-        },
-        body: JSON.stringify({ username: form.username, password: form.password }),
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ username: form.username, password: form.password, role: 'user' }),
       });
       const data = await res.json();
-
       if (!res.ok) {
-        setMessage(`❌ Failed: ${data.error || "Could not register user."}`);
-      } else {
-        setMessage(`✅ User ${form.username} registered successfully!`);
-        setForm({ username: "", password: "" }); // Reset form
+        throw new Error(data.error || "Could not register user.");
       }
+      
+      // --- PERUBAHAN UTAMA DI SINI ---
+      setMessage(`✅ User ${form.username} registered! Check their email to confirm the sign up!`);
+      
+      setForm({ username: "", password: "" });
     } catch (err: any) {
-      setMessage("❌ Network or server error: " + err.message);
+      setMessage(`❌ Error: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  if (isAuthLoading) {
-    return <div className="min-h-screen flex items-center justify-center"><p>Loading...</p></div>;
-  }
-  if (!isAuthenticated || !isAdmin) {
-    // Ini fallback jika redirect belum terjadi
-    return <div className="min-h-screen flex items-center justify-center"><p>Access Denied. Redirecting...</p></div>;
+  if (isAuthLoading || !isSuperAdmin) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <Navbar />
+        <div className="flex items-center justify-center p-10">
+          <p className="text-slate-600">Verifying access...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center pt-10 p-6">
-      <div className="w-full max-w-md mb-6">
-        <Link href="/" legacyBehavior>
-            <a className="text-blue-600 hover:text-blue-800">← Back to Dashboard</a>
-        </Link>
-      </div>
-      <div className="bg-white p-6 rounded shadow-md w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Register New User (Admin)</h2>
-        <form onSubmit={handleSubmit}>
-          <label className="block mb-2 text-sm text-gray-800">New User's Email</label>
-          <input type="email" name="username" value={form.username} onChange={handleChange} className="w-full mb-4 border rounded p-2 text-gray-800" placeholder="newuser@example.com" required />
-          <label className="block mb-2 text-sm text-gray-800">New User's Password</label>
-          <div className="relative mb-4">
-            <input type={showPassword ? "text" : "password"} name="password" value={form.password} onChange={handleChange} className="w-full border rounded p-2 text-gray-800 pr-10" placeholder="Minimum 6 characters" required />
-            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1">
-              <img src={showPassword ? "/hide-password.png" : "/show-password.png"} alt="toggle password" className="w-5 h-5 opacity-70" />
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      <Navbar />
+      <main className="flex-grow flex flex-col items-center pt-10 p-6">
+        <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+          <h2 className="text-2xl font-bold mb-6 text-center text-slate-800">User Management</h2>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block mb-1.5 text-sm font-medium text-slate-700">New User's Email</label>
+              <input type="email" name="username" value={form.username} onChange={handleChange} className="w-full border-slate-300 rounded-lg shadow-sm p-2.5 focus:ring-blue-500 focus:border-blue-500" placeholder="newuser@example.com" required />
+            </div>
+            <div>
+              <label className="block mb-1.5 text-sm font-medium text-slate-700">Set Password</label>
+              <input type="password" name="password" value={form.password} onChange={handleChange} className="w-full border-slate-300 rounded-lg shadow-sm p-2.5 focus:ring-blue-500 focus:border-blue-500" placeholder="Minimum 6 characters" required />
+            </div>
+            <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed">
+              {loading ? "Creating User..." : "Create User"}
             </button>
-          </div>
-          <button type="submit" disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-4 rounded transition-colors">
-            {loading ? "Registering..." : "Register User"}
-          </button>
-          {message && <p className="mt-4 text-sm text-center text-gray-800">{message}</p>}
-        </form>
-      </div>
+            
+            {/* PERBAIKAN TAMPILAN PESAN */}
+            {message && (
+              <div className={`mt-4 p-3 rounded-lg text-sm text-center font-medium ${message.startsWith('✅') 
+                ? 'bg-green-100 text-green-800' 
+                : 'bg-red-100 text-red-800'
+              }`}>
+                {message}
+              </div>
+            )}
+          </form>
+        </div>
+      </main>
     </div>
   );
 }
