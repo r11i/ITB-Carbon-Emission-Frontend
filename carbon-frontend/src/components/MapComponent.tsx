@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+// import type { Map as LeafletMap, Marker as LeafletMarker } from "leaflet";
 import L from "leaflet";
+import type { Map as LeafletMapType, Marker as LeafletMarkerType } from "leaflet";
 import "leaflet/dist/leaflet.css";
+// import type { Map as LeafletMap, Marker as LeafletMarker } from "leaflet";
+
 
 export interface LocationData {
   name: string;
@@ -21,10 +25,12 @@ export default function MapComponent({
   onLocationSelect,
   onMapPopupClose
 }: MapComponentProps) {
-  const mapRef = useRef<L.Map | null>(null);
+  // const mapRef = useRef<L.Map | null>(null);
+  const mapRef = useRef<LeafletMapType | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   // Renamed for clarity: tracks the marker whose popup is currently open and "selected"
-  const openPopupMarkerRef = useRef<L.Marker | null>(null);
+  // const openPopupMarkerRef = useRef<L.Marker | null>(null);
+  const openPopupMarkerRef = useRef<LeafletMarkerType | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined" && mapContainerRef.current) {
