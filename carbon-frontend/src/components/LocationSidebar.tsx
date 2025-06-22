@@ -46,7 +46,7 @@ const ganeshaCampusInfo = {
   apiNameKey: "Ganesha",
   image: "/itb-gane.jpg",
 };
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+// const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 const ChartSkeleton: React.FC = () => (
   <div className="w-full h-[300px] bg-gray-200 rounded-lg animate-pulse p-4 space-y-4">
@@ -117,8 +117,12 @@ const LocationSidebar: React.FC<LocationSidebarProps> = ({
           } else {
             setTrendChartData([]);
           }
-        } catch (e: any) {
-          setErrorChart(e.message || "Failed to load trend data.");
+        } catch (e: unknown) {
+          if (e instanceof Error) {
+            setErrorChart(e.message);
+          } else {
+            setErrorChart("Failed to load trend data.");
+          }
           setTrendChartData([]);
         } finally {
           setIsLoadingChart(false);
