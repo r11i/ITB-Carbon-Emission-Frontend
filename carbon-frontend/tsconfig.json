@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "ESNext",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
@@ -8,7 +8,7 @@
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "esModuleInterop": true,
-    "module": "esnext",
+    "module": "ESNext",
     "moduleResolution": "node", // atau "bundler" untuk Next.js 13.4+
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -19,6 +19,7 @@
         "name": "next"
       }
     ],
+    "allowSyntheticDefaultImports": true,
     "types": ["leaflet"],
     // --- BAGIAN PENTING ---
     "baseUrl": "./", // <-- Set baseUrl ke root folder `carbon-frontend`
