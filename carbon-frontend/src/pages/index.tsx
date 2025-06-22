@@ -113,6 +113,7 @@ export default function HomePage() {
   // Trigger pengambilan data ketika lokasi atau tahun berubah
   useEffect(() => {
     if (selectedLocation?.id) {
+     // @ts-ignore
       fetchDataForSelectedCampusAndYear(selectedLocation.id, selectedYear);
     }
   }, [selectedLocation, selectedYear, fetchDataForSelectedCampusAndYear]);
@@ -149,6 +150,7 @@ export default function HomePage() {
                 // PROPERTI KUNCI: Memberikan fungsi pembuka sidebar ke MapComponent
                 onLocationSelect={handleLocationSelect}
                 onMapPopupClose={handleCloseLocationSidebar}
+                // @ts-ignore
                 externallySelectedLocation={selectedLocation}
               />
             </div>

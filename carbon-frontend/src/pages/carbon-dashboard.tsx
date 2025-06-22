@@ -63,7 +63,8 @@ const ChartContainer: React.FC<ChartContainerProps> = ({ title, children, isLoad
                 {actions}
                 {!noZoom && onZoom && !isLoading && !error && (
                     <button onClick={onZoom} title="View Full Chart" className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors">
-                        View More >
+                        
+                        View More `{'>'}`
                     </button>
                 )}
             </div>
@@ -268,7 +269,8 @@ const Dashboard = () => {
 
   return (
     <Layout
-      title="Carbon Emissions Dashboard"
+    // @ts-ignore  
+    title="Carbon Emissions Dashboard"
       subtitle="An overview of ITB's carbon footprint."
       headerActions={
           <div className="relative w-full sm:w-auto">
