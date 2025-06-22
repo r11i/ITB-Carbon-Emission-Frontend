@@ -61,7 +61,7 @@ export default function HomePage() {
     const fetchAvailableYears = async () => {
         if (!initialGaneshaCampusData.id) return setAvailableYears(["All"]);
         try {
-            const apiUrl = `${API_BASE_URL}/emissions/campus?campus=${initialGaneshaCampusData.id}&year=All`;
+            const apiUrl = `/api/emissions/campus?campus=${initialGaneshaCampusData.id}&year=All`;
             const response = await fetch(apiUrl);
             if (!response.ok) throw new Error(`API Error: ${response.status}`);
             const data: CampusEmissionsResponse = await response.json();
@@ -86,7 +86,7 @@ export default function HomePage() {
     setIsBuildingDataLoading(true);
     setBuildingDataError(null);
     try {
-      const apiUrl = `${API_BASE_URL}/emissions/building?campus=${encodeURIComponent(campusId)}&year=${encodeURIComponent(year)}`;
+      const apiUrl = `/api/emissions/building?campus=${encodeURIComponent(campusId)}&year=${encodeURIComponent(year)}`;
       const response = await fetch(apiUrl);
       if (!response.ok) throw new Error(`API Error: ${response.status}`);
       const data: BuildingJsonResponse = await response.json();

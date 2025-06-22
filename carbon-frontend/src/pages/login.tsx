@@ -37,7 +37,7 @@ export default function UserLoginForm() {
     e.preventDefault();
     setLoading(true); setMessage("");
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/users/login`, {
+      const res = await fetch(`/api/users/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: form.username, password: form.password }),
@@ -57,7 +57,7 @@ export default function UserLoginForm() {
       auth.login(data.token, userData);
     } catch (err: any) {setMessage("❌ Network or server error: " + err.message); setLoading(false);}
   };
-  const handleForgotSubmit = async () => { setForgotMsg("");setForgotLoading(true);try{const res=await fetch(`${process.env.NEXT_PUBLIC_API_URL||"http://localhost:5000"}/users/forgot-password`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:forgotEmail}),});const data=await res.json();if(!res.ok){setForgotMsg(data.message||"❌ Failed to send reset link.");if(res.status!==200&&data.error){setForgotMsg(`❌ ${data.error}`)}return}setForgotMsg(data.message||"✅ If an account exists, a reset link has been sent.")}catch(err:any){setForgotMsg("❌ Error: "+err.message)}finally{setForgotLoading(false)}};
+  const handleForgotSubmit = async () => { setForgotMsg("");setForgotLoading(true);try{const res=await fetch(`/api/users/forgot-password`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:forgotEmail}),});const data=await res.json();if(!res.ok){setForgotMsg(data.message||"❌ Failed to send reset link.");if(res.status!==200&&data.error){setForgotMsg(`❌ ${data.error}`)}return}setForgotMsg(data.message||"✅ If an account exists, a reset link has been sent.")}catch(err:any){setForgotMsg("❌ Error: "+err.message)}finally{setForgotLoading(false)}};
 
   if (auth.isLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-gray-100"><p>Loading authentication...</p></div>;

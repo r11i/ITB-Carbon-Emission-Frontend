@@ -179,7 +179,7 @@ const Dashboard = () => {
   const [isChartModalOpen, setIsChartModalOpen] = useState(false);
   const [modalChartConfig, setModalChartConfig] = useState<Omit<ChartModalProps, 'isOpen' | 'onClose' > | null>(null);
   const fetchApi = useCallback(async <T,>(relativePath: string): Promise<T> => {
-    const fullUrl = `${API_BASE_URL}${relativePath}`;
+    const fullUrl = `/api${relativePath}`;
     const res = await fetch(fullUrl);
     if (!res.ok) {
         const errTxt = await res.text();

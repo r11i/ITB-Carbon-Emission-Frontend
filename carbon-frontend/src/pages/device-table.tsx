@@ -63,8 +63,8 @@ export default function DeviceInputPage() {
         throw error;
     }
   }, [router, logout]);
-  const fetchBuildings = useCallback(async () => { setIsLoadingBuildings(true);setOptionsError(null);setBuildingOptions([]);setRoomOptions([]);try{const aU=`${API_BASE_URL}/buildings?campus_name=${encodeURIComponent(GANESHA_CAMPUS_API_NAME)}`;const bR=await sendAuthorizedRequest(aU);if(!bR.ok)throw new Error("Error fetching buildings");const bD=await bR.json();if(!bD.buildings||!Array.isArray(bD.buildings))throw new Error("Invalid building data format");setBuildingOptions(bD.buildings.sort())}catch(e:any){if(e.message!=="Unauthorized or Forbidden")setOptionsError(e.message||"Failed to load buildings")}finally{setIsLoadingBuildings(false)}},[sendAuthorizedRequest]);
-  const fetchRoomsForBuilding = useCallback(async (bN: string) => { if(!bN){setRoomOptions([]);return}setIsLoadingRooms(true);setOptionsError(null);setRoomOptions([]);try{const eBN=encodeURIComponent(bN);const aU=`${API_BASE_URL}/rooms?building_name=${eBN}`;const rR=await sendAuthorizedRequest(aU);if(!rR.ok)throw new Error("Error fetching rooms");const rD=await rR.json();if(!rD.rooms||!Array.isArray(rD.rooms))throw new Error("Invalid room data format");setRoomOptions(rD.rooms.sort())}catch(e:any){if(e.message!=="Unauthorized or Forbidden")setOptionsError(e.message||"Failed to load rooms")}finally{setIsLoadingRooms(false)}},[sendAuthorizedRequest]);
+  const fetchBuildings = useCallback(async () => { setIsLoadingBuildings(true);setOptionsError(null);setBuildingOptions([]);setRoomOptions([]);try{const aU=`/api/buildings?campus_name=${encodeURIComponent(GANESHA_CAMPUS_API_NAME)}`;const bR=await sendAuthorizedRequest(aU);if(!bR.ok)throw new Error("Error fetching buildings");const bD=await bR.json();if(!bD.buildings||!Array.isArray(bD.buildings))throw new Error("Invalid building data format");setBuildingOptions(bD.buildings.sort())}catch(e:any){if(e.message!=="Unauthorized or Forbidden")setOptionsError(e.message||"Failed to load buildings")}finally{setIsLoadingBuildings(false)}},[sendAuthorizedRequest]);
+  const fetchRoomsForBuilding = useCallback(async (bN: string) => { if(!bN){setRoomOptions([]);return}setIsLoadingRooms(true);setOptionsError(null);setRoomOptions([]);try{const eBN=encodeURIComponent(bN);const aU=`/api/rooms?building_name=${eBN}`;const rR=await sendAuthorizedRequest(aU);if(!rR.ok)throw new Error("Error fetching rooms");const rD=await rR.json();if(!rD.rooms||!Array.isArray(rD.rooms))throw new Error("Invalid room data format");setRoomOptions(rD.rooms.sort())}catch(e:any){if(e.message!=="Unauthorized or Forbidden")setOptionsError(e.message||"Failed to load rooms")}finally{setIsLoadingRooms(false)}},[sendAuthorizedRequest]);
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated) {
       fetchBuildings();
@@ -81,7 +81,7 @@ export default function DeviceInputPage() {
     setFormError(null);
     const payload={device_name:formData.deviceName.trim(),device_power:parseInt(formData.power),campus_name:GANESHA_CAMPUS_API_NAME,building_name:formData.building,room_name:formData.room,usage_hours:parseInt(formData.usageTime),year:selectedMonth!.getFullYear(),month:selectedMonth!.getMonth()+1};
     try {
-      const res=await sendAuthorizedRequest(`${API_BASE_URL}/emissions/device_input`,{method:"POST",body:JSON.stringify(payload)});
+      const res=await sendAuthorizedRequest(`/api/emissions/device_input`,{method:"POST",body:JSON.stringify(payload)});
       if(!res.ok){const eD=await res.json().catch(()=>({}));throw new Error(eD.error||`Request failed with status ${res.status}`)}
       const result=await res.json();
       setFormSuccess(result.message||"Data saved successfully!");

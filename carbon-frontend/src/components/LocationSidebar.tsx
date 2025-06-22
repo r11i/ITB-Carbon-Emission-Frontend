@@ -102,7 +102,7 @@ const LocationSidebar: React.FC<LocationSidebarProps> = ({
         setIsLoadingChart(true);
         setErrorChart(null);
         try {
-          const apiUrl = `${API_BASE_URL}/emissions/campus?campus=${ganeshaCampusInfo.apiNameKey}&year=All`;
+          const apiUrl = `/api/emissions/campus?campus=${ganeshaCampusInfo.apiNameKey}&year=All`;
           const response = await fetch(apiUrl);
           if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
           const data = await response.json();

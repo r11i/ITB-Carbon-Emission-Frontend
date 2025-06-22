@@ -30,7 +30,7 @@ export default function AdminUserRegisterPage() {
       const token = localStorage.getItem('authToken');
       if (!token) throw new Error("Authentication token not found.");
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/users/register`, {
+      const res = await fetch(`/api/users/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ username: form.username, password: form.password, role: 'user' }),
