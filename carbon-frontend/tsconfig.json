@@ -19,6 +19,7 @@
         "name": "next"
       }
     ],
+    "types": ["leaflet"],
     // --- BAGIAN PENTING ---
     "baseUrl": "./", // <-- Set baseUrl ke root folder `carbon-frontend`
     "paths": {
