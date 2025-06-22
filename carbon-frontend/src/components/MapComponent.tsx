@@ -116,7 +116,7 @@ export default function MapComponent({
         onLocationSelect(location); // Panggil onLocationSelect saat pertama kali load
         // --- AKHIR MODIFIKASI ---
 
-        marker.on("click", (e) => {
+        marker.on("click", (e: any) => {
           L.DomEvent.stopPropagation(e); // Hentikan event agar tidak langsung ditangkap oleh map click
 
           // Jika popup tertutup karena suatu hal dan marker diklik lagi
