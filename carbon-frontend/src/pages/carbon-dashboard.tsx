@@ -1,7 +1,9 @@
+// src/pages/carbon-dashboard.tsx (REVISI FINAL - DYNAMIC TREND CHART)
+
 "use client";
 
 import React, { useEffect, useState, useCallback, ReactNode } from "react";
-import Head from "next/head"; // <-- PENAMBAHAN
+import Head from "next/head";
 import Layout from "@/components/Layout";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, Legend,
@@ -9,7 +11,7 @@ import {
 } from "recharts";
 import { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 
-// --- Constants ---
+// --- Constants (Tidak ada perubahan) ---
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 const trendPalette = ["#2563EB"];
 const comparisonPalette = ["#1E3A8A", "#1D4ED8", "#3B82F6", "#60A5FA", "#93C5FD", "#A78BFA", "#7C3AED", "#F472B6", "#10B981", "#F59E0B"];
@@ -17,21 +19,21 @@ const devicePiePalette = ["#10B981", "#F59E0B", "#6366F1", "#8B5CF6", "#EC4899",
 const slate = { 50:"#F8FAFC", 100:"#F1F5F9", 200:"#E2E8F0", 300:"#CBD5E1", 400:"#94A3B8", 500:"#64748B", 600:"#475569", 700:"#334155", 800:"#1E293B", 900:"#0F172A"};
 const monthLabels: { [key: number]: string } = {1:"Jan",2:"Feb",3:"Mar",4:"Apr",5:"May",6:"Jun",7:"Jul",8:"Aug",9:"Sep",10:"Oct",11:"Nov",12:"Dec"};
 
-// --- Interfaces ---
+// --- Interfaces (Tidak ada perubahan) ---
 interface DataPoint { year?: string; month?: string; name?: string; total?: number; [key: string]: string | number | undefined; }
 interface PieSliceData { name: string; value: number; }
 interface RoomData { [roomName: string]: number; }
 interface BuildingData { total_emission: number; rooms: RoomData; }
 interface BuildingJson { [buildingName: string]: BuildingData; }
 
-// --- Helper Functions ---
+// --- Helper Functions (Tidak ada perubahan) ---
 const formatNumber = (num: number | undefined | null, decimals = 0): string => {
   if (num === undefined || num === null || isNaN(num)) return "N/A";
   return num.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 };
 const formatTooltipValue = (value: number): string => `${formatNumber(value, 1)} kg CO₂e`;
 
-// --- Reusable UI Components ---
+// --- Reusable UI Components (Tidak ada perubahan) ---
 const LoadingSpinner: React.FC<{ size?: 'sm' | 'md' | 'lg' }> = ({ size = 'md' }) => {
     const sizeClasses = { sm: 'w-6 h-6', md: 'w-8 h-8', lg: 'w-12 h-12' };
     return <div className={`${sizeClasses[size]} border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto`}></div>;
@@ -163,22 +165,25 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dashboardSelectedYear, setDashboardSelectedYear] = useState<string>("All");
-  const [yearlyTrendData, setYearlyTrendData] = useState<DataPoint[]>([]);
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [grandTotalEmissions, setGrandTotalEmissions] = useState<number | null>(null);
-  const [monthlyTrendData, setMonthlyTrendData] = useState<DataPoint[]>([]);
-  const [chartMode, setChartMode] = useState<"year" | "month">("year");
-  const [selectedYearForMonthly, setSelectedYearForMonthly] = useState<string | null>(null);
   const [totalEmissions, setTotalEmissions] = useState<number | null>(null);
   const [topEmittingBuildingName, setTopEmittingBuildingName] = useState<string | null>(null);
+  
+  // State untuk data chart
+  const [yearlyTrendData, setYearlyTrendData] = useState<DataPoint[]>([]);
+  const [monthlyTrendData, setMonthlyTrendData] = useState<DataPoint[]>([]);
   const [devicePieData, setDevicePieData] = useState<PieSliceData[]>([]);
   const [allDeviceDataForModal, setAllDeviceDataForModal] = useState<PieSliceData[]>([]);
   const [allBuildingsChartData, setAllBuildingsChartData] = useState<PieSliceData[]>([]);
   const [allBuildingsData, setAllBuildingsData] = useState<BuildingJson | null>(null);
   const [selectedBuildingForRooms, setSelectedBuildingForRooms] = useState<string>("");
   const [roomChartData, setRoomChartData] = useState<PieSliceData[]>([]);
+  
+  // State untuk modal
   const [isChartModalOpen, setIsChartModalOpen] = useState(false);
   const [modalChartConfig, setModalChartConfig] = useState<Omit<ChartModalProps, 'isOpen' | 'onClose' > | null>(null);
+
   const fetchApi = useCallback(async <T,>(relativePath: string): Promise<T> => {
     const fullUrl = `${API_BASE_URL}${relativePath}`;
     const res = await fetch(fullUrl);
@@ -189,6 +194,8 @@ const Dashboard = () => {
     }
     return res.json() as Promise<T>;
   }, []);
+
+  // Fetch data awal sekali saja untuk mendapatkan daftar tahun dan data tren tahunan
   useEffect(() => {
     const fetchInitialData = async () => {
         try {
@@ -207,36 +214,73 @@ const Dashboard = () => {
     };
     fetchInitialData();
   }, [fetchApi]);
+
+  // useEffect ini berjalan SETIAP KALI `dashboardSelectedYear` berubah.
+  // Ini adalah inti dari semua pembaruan data di halaman.
   useEffect(() => {
-    const fetchFilteredData = async () => {
+    const fetchAllDataForSelectedYear = async () => {
         setIsLoading(true);
         setError(null);
-        setSelectedBuildingForRooms("");
+        setSelectedBuildingForRooms(""); // Reset pilihan gedung
         setRoomChartData([]);
+
         try {
+            // 1. Ambil data gedung dan perangkat berdasarkan tahun yang dipilih
             const buildingJson = await fetchApi<{ buildings: BuildingJson }>(`/emissions/building?year=${encodeURIComponent(dashboardSelectedYear)}`);
             const buildings = buildingJson.buildings;
             const buildingRawData = Object.entries(buildings).map(([name, data]) => ({ name, value: data.total_emission })).filter(item => item.value > 0).sort((a, b) => b.value - a.value);
             const currentTotal = buildingRawData.reduce((sum, item) => sum + item.value, 0);
+            
             setTotalEmissions(currentTotal);
             setTopEmittingBuildingName(buildingRawData.length > 0 ? buildingRawData[0].name : null);
             setAllBuildingsChartData(buildingRawData);
             setAllBuildingsData(buildings);
+
             const deviceJson = await fetchApi<{ device_emissions?: { [key: string]: number } }>(`/emissions/device?year=${encodeURIComponent(dashboardSelectedYear)}`);
             if (deviceJson.device_emissions) {
                 const rawDeviceData = Object.entries(deviceJson.device_emissions).map(([name, value]) => ({ name, value })).filter(item => item.value > 0).sort((a, b) => b.value - a.value);
                 setAllDeviceDataForModal(rawDeviceData);
-                let pieDataStructured: PieSliceData[] = [], otherValue = 0, TOP_N_PIE_DEVICES = 6;
+                let pieDataStructured: PieSliceData[] = [];
+                let otherValue = 0;
+                const TOP_N_PIE_DEVICES = 6;
                 rawDeviceData.forEach((item, i) => i < TOP_N_PIE_DEVICES ? pieDataStructured.push(item) : otherValue += item.value);
                 if (otherValue > 0) pieDataStructured.push({ name: "Others", value: otherValue });
                 setDevicePieData(pieDataStructured);
             } else {
-                setDevicePieData([]); setAllDeviceDataForModal([]);
+                setDevicePieData([]);
+                setAllDeviceDataForModal([]);
             }
-        } catch (err: any) { setError(err.message); } finally { setIsLoading(false); }
+
+            // 2. LOGIKA BARU: Jika tahun spesifik dipilih, ambil data bulanannya.
+            if (dashboardSelectedYear !== "All") {
+                const monthlyJson = await fetchApi<{ emissions: { [c: string]: { [m: string]: number }} }>(`/emissions/campus?year=${dashboardSelectedYear}&aggregate=monthly_total`);
+                const structured: DataPoint[] = [];
+                Object.values(monthlyJson.emissions).forEach(monthData => {
+                    Object.entries(monthData).forEach(([month, val]) => {
+                        let e = structured.find(d => d.month === month);
+                        if (!e) {
+                            e = { month, total: 0, year: dashboardSelectedYear }; // Simpan tahun untuk tooltip
+                            structured.push(e);
+                        }
+                        (e.total as number) += val;
+                    });
+                });
+                setMonthlyTrendData(structured.sort((a, b) => parseInt(a.month!) - parseInt(b.month!)));
+            } else {
+                // Jika "All Years" dipilih, kosongkan data bulanan
+                setMonthlyTrendData([]);
+            }
+
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setIsLoading(false);
+        }
     };
-    fetchFilteredData();
+    
+    fetchAllDataForSelectedYear();
   }, [dashboardSelectedYear, fetchApi]);
+  
   useEffect(() => {
     if (selectedBuildingForRooms && allBuildingsData) {
         const building = allBuildingsData[selectedBuildingForRooms];
@@ -246,18 +290,8 @@ const Dashboard = () => {
         } else { setRoomChartData([]); }
     } else { setRoomChartData([]); }
   }, [selectedBuildingForRooms, allBuildingsData]);
-  const fetchMonthlyTrend = useCallback(async (year: string) => {
-    setSelectedYearForMonthly(year);
-    setChartMode("month");
-    setError(null);
-    try {
-        const json = await fetchApi<{ emissions: { [c: string]: { [m: string]: number }} }>(`/emissions/campus?year=${year}&aggregate=monthly_total`);
-        const structured: DataPoint[] = [];
-        Object.values(json.emissions).forEach(monthData => {Object.entries(monthData).forEach(([month, val]) => { let e = structured.find(d => d.month === month); if (!e) { e = { month, total: 0 }; structured.push(e); } (e.total as number) += val; });});
-        setMonthlyTrendData(structured.sort((a, b) => parseInt(a.month!) - parseInt(b.month!)));
-    } catch (err: any) { setError(err.message); }
-  }, [fetchApi]);
 
+  // Variabel untuk data yang ditampilkan di kartu statistik
   const displayedTotalEmissions = dashboardSelectedYear === "All" && grandTotalEmissions !== null ? grandTotalEmissions : totalEmissions;
   const averageMonthlyEmission = dashboardSelectedYear === "All" 
       ? (grandTotalEmissions && availableYears.length > 0 ? grandTotalEmissions / (availableYears.length * 12) : null)
@@ -275,16 +309,20 @@ const Dashboard = () => {
         <link rel="icon" href="/logo-itb.svg" />
       </Head>
 
-      <Layout
-        title="Carbon Emissions Dashboard"
-        subtitle="An overview of ITB's carbon footprint."
-        headerActions={
+      <Layout>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+            <div>
+                <h1 className="text-2xl font-bold text-slate-800">Carbon Emissions Dashboard</h1>
+                <p className="mt-1 text-sm text-slate-600">An overview of ITB's carbon footprint.</p>
+            </div>
+            
             <div className="relative w-full sm:w-auto">
                 <select
                     value={dashboardSelectedYear}
                     onChange={(e) => setDashboardSelectedYear(e.target.value)}
                     className="w-full sm:w-40 appearance-none text-sm pl-3 pr-10 py-2 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition"
                     disabled={isLoading || availableYears.length === 0}
+                    aria-label="Select year to filter dashboard data"
                 >
                     <option value="All">All Years</option>
                     {availableYears.map(year => (<option key={year} value={year}>{year}</option>))}
@@ -293,8 +331,8 @@ const Dashboard = () => {
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 20 20" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M6 8l4 4 4-4" /></svg>
                 </div>
             </div>
-        }
-      >
+        </div>
+
         {/* Kartu Statistik */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
             <DashboardCard title={`Total Emissions (${dashboardSelectedYear})`} value={displayedTotalEmissions ?? '-'} unit="kg CO₂e" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg>} isLoading={isLoading} />
@@ -305,23 +343,27 @@ const Dashboard = () => {
         {/* Grid untuk Chart */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ChartContainer
-              title={chartMode === 'year' ? "Annual Emissions Trend (All Campuses)" : `Monthly Trend for ${selectedYearForMonthly}`}
-              isLoading={yearlyTrendData.length === 0 && !error} error={error} noZoom={true}
-              actions={
-                  <div className="flex items-center space-x-2">
-                      {chartMode === 'month' ? (
-                          <button onClick={() => { setChartMode("year"); setSelectedYearForMonthly(null); }} disabled={isLoading} className="flex items-center text-xs px-3 py-1.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-md shadow-sm hover:bg-slate-50 disabled:opacity-50">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                              Annual
-                          </button>
-                      ) : availableYears.slice(0, 3).map(year => (
-                          <button key={year} onClick={() => fetchMonthlyTrend(year)} disabled={isLoading} className="px-3 py-1 text-xs rounded-full font-medium transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-50">{year}</button>
-                      ))}
-                  </div>
+              // === PERUBAHAN 1: Judul dinamis ===
+              title={
+                dashboardSelectedYear === 'All'
+                  ? "Annual Emissions Trend (All Campuses)"
+                  : `Monthly Trend for ${dashboardSelectedYear}`
               }
+              isLoading={isLoading}
+              error={error}
+              noZoom={true}
+              // === PERUBAHAN 2: Tombol actions dihapus ===
           >
               <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartMode === 'year' ? yearlyTrendData.map(d => ({...d, name: d.year})) : monthlyTrendData.map(d => ({...d, name: monthLabels[parseInt(d.month!)] || d.month}))} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <LineChart
+                    // === PERUBAHAN 3: Data dinamis ===
+                    data={
+                      dashboardSelectedYear === 'All'
+                        ? yearlyTrendData.map(d => ({ ...d, name: d.year }))
+                        : monthlyTrendData.map(d => ({ ...d, name: monthLabels[parseInt(d.month!)] || d.month }))
+                    }
+                    margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+                  >
                       <CartesianGrid strokeDasharray="3 3" stroke={slate[200]} />
                       <XAxis dataKey="name" tick={{ fill: slate[500], fontSize: 11 }} axisLine={{ stroke: slate[300] }} tickLine={false} padding={{ left: 10, right: 10 }} />
                       <YAxis tick={{ fill: slate[500], fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => formatNumber(v,0)} width={50} />
