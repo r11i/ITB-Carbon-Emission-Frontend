@@ -1,14 +1,15 @@
 "use client";
 
 import React, { useEffect, useState, useCallback, ReactNode } from "react";
-import Layout from "@/components/Layout"; // <-- Menggunakan Layout terpusat baru
+import Head from "next/head"; // <-- PENAMBAHAN
+import Layout from "@/components/Layout";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, Legend,
   ResponsiveContainer, PieChart, Pie, Cell, TooltipProps, CartesianGrid
 } from "recharts";
 import { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 
-// --- Constants (Tidak ada perubahan) ---
+// --- Constants ---
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 const trendPalette = ["#2563EB"];
 const comparisonPalette = ["#1E3A8A", "#1D4ED8", "#3B82F6", "#60A5FA", "#93C5FD", "#A78BFA", "#7C3AED", "#F472B6", "#10B981", "#F59E0B"];
@@ -16,21 +17,21 @@ const devicePiePalette = ["#10B981", "#F59E0B", "#6366F1", "#8B5CF6", "#EC4899",
 const slate = { 50:"#F8FAFC", 100:"#F1F5F9", 200:"#E2E8F0", 300:"#CBD5E1", 400:"#94A3B8", 500:"#64748B", 600:"#475569", 700:"#334155", 800:"#1E293B", 900:"#0F172A"};
 const monthLabels: { [key: number]: string } = {1:"Jan",2:"Feb",3:"Mar",4:"Apr",5:"May",6:"Jun",7:"Jul",8:"Aug",9:"Sep",10:"Oct",11:"Nov",12:"Dec"};
 
-// --- Interfaces (Tidak ada perubahan) ---
+// --- Interfaces ---
 interface DataPoint { year?: string; month?: string; name?: string; total?: number; [key: string]: string | number | undefined; }
 interface PieSliceData { name: string; value: number; }
 interface RoomData { [roomName: string]: number; }
 interface BuildingData { total_emission: number; rooms: RoomData; }
 interface BuildingJson { [buildingName: string]: BuildingData; }
 
-// --- Helper Functions (Tidak ada perubahan) ---
+// --- Helper Functions ---
 const formatNumber = (num: number | undefined | null, decimals = 0): string => {
   if (num === undefined || num === null || isNaN(num)) return "N/A";
   return num.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 };
 const formatTooltipValue = (value: number): string => `${formatNumber(value, 1)} kg CO₂e`;
 
-// --- Reusable UI Components (Tidak ada perubahan) ---
+// --- Reusable UI Components ---
 const LoadingSpinner: React.FC<{ size?: 'sm' | 'md' | 'lg' }> = ({ size = 'md' }) => {
     const sizeClasses = { sm: 'w-6 h-6', md: 'w-8 h-8', lg: 'w-12 h-12' };
     return <div className={`${sizeClasses[size]} border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto`}></div>;
@@ -157,7 +158,7 @@ const ChartModal: React.FC<ChartModalProps> = ({ isOpen, onClose, title, chartDa
     );
 };
 
-// --- Main Dashboard Component (Hooks dan Logic tidak berubah) ---
+// --- Main Dashboard Component ---
 const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -267,143 +268,151 @@ const Dashboard = () => {
   const handleOpenRoomChartModal = () => {setModalChartConfig({title: `Room Emissions in ${selectedBuildingForRooms} (${dashboardSelectedYear})`, chartData: roomChartData, chartType: 'bar', dataKey: 'value', xAxisDataKey: 'name', colors: comparisonPalette}); setIsChartModalOpen(true);};
 
   return (
-    <Layout
-      title="Carbon Emissions Dashboard"
-      subtitle="An overview of ITB's carbon footprint."
-      headerActions={
-          <div className="relative w-full sm:w-auto">
-              <select
-                  value={dashboardSelectedYear}
-                  onChange={(e) => setDashboardSelectedYear(e.target.value)}
-                  className="w-full sm:w-40 appearance-none text-sm pl-3 pr-10 py-2 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition"
-                  disabled={isLoading || availableYears.length === 0}
-              >
-                  <option value="All">All Years</option>
-                  {availableYears.map(year => (<option key={year} value={year}>{year}</option>))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 20 20" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M6 8l4 4 4-4" /></svg>
-              </div>
-          </div>
-      }
-    >
-      {/* Kartu Statistik */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-          <DashboardCard title={`Total Emissions (${dashboardSelectedYear})`} value={displayedTotalEmissions ?? '-'} unit="kg CO₂e" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg>} isLoading={isLoading} />
-          <DashboardCard title={`Top Emitter (${dashboardSelectedYear})`} value={topEmittingBuildingName ?? 'N/A'} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H5a1 1 0 110-2V4zm3 1h2v1H7V5zm0 2h2v1H7V7zm0 2h2v1H7V9zm0 2h2v1H7v-1zm4-6h2v1h-2V5zm0 2h2v1h-2V7zm0 2h2v1h-2V9zm0 2h2v1h-2v-1z" clipRule="evenodd" /></svg>} isLoading={isLoading} />
-          <DashboardCard title={`Avg. Monthly (${dashboardSelectedYear})`} value={averageMonthlyEmission ?? '-'} unit="kg CO₂e" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>} isLoading={isLoading} />
-      </div>
+    <>
+      <Head>
+        <title>Dashboard | ITB Carbon Emissions Visualization</title>
+        <meta name="description" content="Dashboard for analyzing ITB's carbon footprint." />
+        <link rel="icon" href="/logo-itb.svg" />
+      </Head>
 
-      {/* Grid untuk Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartContainer
-            title={chartMode === 'year' ? "Annual Emissions Trend (All Campuses)" : `Monthly Trend for ${selectedYearForMonthly}`}
-            isLoading={yearlyTrendData.length === 0 && !error} error={error} noZoom={true}
-            actions={
-                <div className="flex items-center space-x-2">
-                    {chartMode === 'month' ? (
-                        <button onClick={() => { setChartMode("year"); setSelectedYearForMonthly(null); }} disabled={isLoading} className="flex items-center text-xs px-3 py-1.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-md shadow-sm hover:bg-slate-50 disabled:opacity-50">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                            Annual
-                        </button>
-                    ) : availableYears.slice(0, 3).map(year => (
-                        <button key={year} onClick={() => fetchMonthlyTrend(year)} disabled={isLoading} className="px-3 py-1 text-xs rounded-full font-medium transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-50">{year}</button>
-                    ))}
+      <Layout
+        title="Carbon Emissions Dashboard"
+        subtitle="An overview of ITB's carbon footprint."
+        headerActions={
+            <div className="relative w-full sm:w-auto">
+                <select
+                    value={dashboardSelectedYear}
+                    onChange={(e) => setDashboardSelectedYear(e.target.value)}
+                    className="w-full sm:w-40 appearance-none text-sm pl-3 pr-10 py-2 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition"
+                    disabled={isLoading || availableYears.length === 0}
+                >
+                    <option value="All">All Years</option>
+                    {availableYears.map(year => (<option key={year} value={year}>{year}</option>))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 20 20" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M6 8l4 4 4-4" /></svg>
                 </div>
-            }
-        >
-            <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartMode === 'year' ? yearlyTrendData.map(d => ({...d, name: d.year})) : monthlyTrendData.map(d => ({...d, name: monthLabels[parseInt(d.month!)] || d.month}))} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={slate[200]} />
-                    <XAxis dataKey="name" tick={{ fill: slate[500], fontSize: 11 }} axisLine={{ stroke: slate[300] }} tickLine={false} padding={{ left: 10, right: 10 }} />
-                    <YAxis tick={{ fill: slate[500], fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => formatNumber(v,0)} width={50} />
-                    <Tooltip content={<CustomTooltip />} cursor={{ stroke: slate[400], strokeDasharray: '4 4' }}/>
-                    <Legend wrapperStyle={{fontSize: '12px', color: slate[600]}}/>
-                    <Line type="monotone" dataKey="total" name="Total Emissions" stroke={trendPalette[0]} strokeWidth={2.5} dot={{ r: 4, fill: trendPalette[0], strokeWidth: 2, stroke: 'white' }} activeDot={{ r: 6 }} />
-                </LineChart>
-            </ResponsiveContainer>
-        </ChartContainer>
+            </div>
+        }
+      >
+        {/* Kartu Statistik */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+            <DashboardCard title={`Total Emissions (${dashboardSelectedYear})`} value={displayedTotalEmissions ?? '-'} unit="kg CO₂e" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg>} isLoading={isLoading} />
+            <DashboardCard title={`Top Emitter (${dashboardSelectedYear})`} value={topEmittingBuildingName ?? 'N/A'} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H5a1 1 0 110-2V4zm3 1h2v1H7V5zm0 2h2v1H7V7zm0 2h2v1H7V9zm0 2h2v1H7v-1zm4-6h2v1h-2V5zm0 2h2v1h-2V7zm0 2h2v1h-2V9zm0 2h2v1h-2v-1z" clipRule="evenodd" /></svg>} isLoading={isLoading} />
+            <DashboardCard title={`Avg. Monthly (${dashboardSelectedYear})`} value={averageMonthlyEmission ?? '-'} unit="kg CO₂e" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>} isLoading={isLoading} />
+        </div>
 
-        <ChartContainer
-            title={`Emissions by Device Type (${dashboardSelectedYear})`}
-            isLoading={isLoading} error={error}
-            onZoom={allDeviceDataForModal.length > 0 ? handleOpenDeviceChartModal : undefined}
-        >
-            <ResponsiveContainer width="100%" height="100%">
-                <PieChart margin={{ top: 0, right: 0, bottom: 30, left: 0 }}>
-                    <Pie data={devicePieData} dataKey="value" nameKey="name" cx="50%" cy="45%" outerRadius="80%" labelLine={false} label={renderCustomizedPieLabel} stroke={slate[50]} strokeWidth={2}>
-                        {devicePieData.map((_, index) => (<Cell key={`cell-dev-${index}`} fill={devicePiePalette[index % devicePiePalette.length]} />))}
-                    </Pie>
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ paddingTop: '15px', fontSize: '12px', lineHeight: '18px' }} formatter={(v) => <span className="text-slate-600">{v}</span>} iconSize={10} />
-                </PieChart>
-            </ResponsiveContainer>
-        </ChartContainer>
+        {/* Grid untuk Chart */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ChartContainer
+              title={chartMode === 'year' ? "Annual Emissions Trend (All Campuses)" : `Monthly Trend for ${selectedYearForMonthly}`}
+              isLoading={yearlyTrendData.length === 0 && !error} error={error} noZoom={true}
+              actions={
+                  <div className="flex items-center space-x-2">
+                      {chartMode === 'month' ? (
+                          <button onClick={() => { setChartMode("year"); setSelectedYearForMonthly(null); }} disabled={isLoading} className="flex items-center text-xs px-3 py-1.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-md shadow-sm hover:bg-slate-50 disabled:opacity-50">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                              Annual
+                          </button>
+                      ) : availableYears.slice(0, 3).map(year => (
+                          <button key={year} onClick={() => fetchMonthlyTrend(year)} disabled={isLoading} className="px-3 py-1 text-xs rounded-full font-medium transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-50">{year}</button>
+                      ))}
+                  </div>
+              }
+          >
+              <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartMode === 'year' ? yearlyTrendData.map(d => ({...d, name: d.year})) : monthlyTrendData.map(d => ({...d, name: monthLabels[parseInt(d.month!)] || d.month}))} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={slate[200]} />
+                      <XAxis dataKey="name" tick={{ fill: slate[500], fontSize: 11 }} axisLine={{ stroke: slate[300] }} tickLine={false} padding={{ left: 10, right: 10 }} />
+                      <YAxis tick={{ fill: slate[500], fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => formatNumber(v,0)} width={50} />
+                      <Tooltip content={<CustomTooltip />} cursor={{ stroke: slate[400], strokeDasharray: '4 4' }}/>
+                      <Legend wrapperStyle={{fontSize: '12px', color: slate[600]}}/>
+                      <Line type="monotone" dataKey="total" name="Total Emissions" stroke={trendPalette[0]} strokeWidth={2.5} dot={{ r: 4, fill: trendPalette[0], strokeWidth: 2, stroke: 'white' }} activeDot={{ r: 6 }} />
+                  </LineChart>
+              </ResponsiveContainer>
+          </ChartContainer>
 
-        <ChartContainer
-            title={`Top 10 Emitters (Buildings, ${dashboardSelectedYear})`}
-            isLoading={isLoading} error={error}
-            onZoom={allBuildingsChartData.length > 0 ? handleOpenBuildingChartModal : undefined}
-        >
-            <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={allBuildingsChartData.slice(0, 10)} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={slate[200]} horizontal={false} />
-                    <XAxis type="number" tick={{ fill: slate[500], fontSize: 11 }} axisLine={{ stroke: slate[300] }} tickLine={false} tickFormatter={(v) => formatNumber(v,0)} />
-                    <YAxis type="category" dataKey="name" width={140} tick={{ fill: slate[600], fontSize: 11, width: 130 }} interval={0} axisLine={false} tickLine={false} />
-                    <Tooltip content={<CustomTooltip />} cursor={{ fill: slate[100] }}/>
-                    <Bar dataKey="value" name="Emissions" radius={[0, 4, 4, 0]} barSize={16}>
-                        {allBuildingsChartData.slice(0, 10).map((_, index) => ( <Cell key={`cell-bldg-${index}`} fill={comparisonPalette[index % comparisonPalette.length]} /> ))}
-                    </Bar>
-                </BarChart>
-            </ResponsiveContainer>
-        </ChartContainer>
+          <ChartContainer
+              title={`Emissions by Device Type (${dashboardSelectedYear})`}
+              isLoading={isLoading} error={error}
+              onZoom={allDeviceDataForModal.length > 0 ? handleOpenDeviceChartModal : undefined}
+          >
+              <ResponsiveContainer width="100%" height="100%">
+                  <PieChart margin={{ top: 0, right: 0, bottom: 30, left: 0 }}>
+                      <Pie data={devicePieData} dataKey="value" nameKey="name" cx="50%" cy="45%" outerRadius="80%" labelLine={false} label={renderCustomizedPieLabel} stroke={slate[50]} strokeWidth={2}>
+                          {devicePieData.map((_, index) => (<Cell key={`cell-dev-${index}`} fill={devicePiePalette[index % devicePiePalette.length]} />))}
+                      </Pie>
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ paddingTop: '15px', fontSize: '12px', lineHeight: '18px' }} formatter={(v) => <span className="text-slate-600">{v}</span>} iconSize={10} />
+                  </PieChart>
+              </ResponsiveContainer>
+          </ChartContainer>
 
-        <ChartContainer
-            title={`Top 10 Emitters (Rooms) ${selectedBuildingForRooms ? `in ${selectedBuildingForRooms}` : ''}`}
-            isLoading={isLoading && !selectedBuildingForRooms} error={error}
-            onZoom={roomChartData.length > 0 ? handleOpenRoomChartModal : undefined}
-            actions={
-                <div className="relative w-48">
-                    <select
-                        value={selectedBuildingForRooms}
-                        onChange={e => setSelectedBuildingForRooms(e.target.value)}
-                        disabled={isLoading || !allBuildingsData}
-                        className="w-full appearance-none truncate text-xs pl-3 pr-8 py-1.5 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white transition"
-                    >
-                        <option value="">Select Building</option>
-                        {allBuildingsData && Object.keys(allBuildingsData).sort().map(name => (
-                            <option key={name} value={name}>{name}</option>
-                        ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
-                    </div>
-                </div>
-            }
-        >
-            {!selectedBuildingForRooms ? (
-                <div className="flex items-center justify-center h-full text-slate-500 text-sm">Please select a building to view room data.</div>
-            ) : roomChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={roomChartData.slice(0, 10)} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={slate[200]} horizontal={false} />
-                        <XAxis type="number" tick={{ fill: slate[500], fontSize: 11 }} axisLine={{ stroke: slate[300] }} tickLine={false} tickFormatter={(v) => formatNumber(v,0)} />
-                        <YAxis type="category" dataKey="name" width={140} tick={{ fill: slate[600], fontSize: 11, width: 130 }} interval={0} axisLine={false} tickLine={false} />
-                        <Tooltip content={<CustomTooltip />} cursor={{ fill: slate[100] }}/>
-                        <Bar dataKey="value" name="Emissions" radius={[0, 4, 4, 0]} barSize={16}>
-                            {roomChartData.slice(0, 10).map((_, index) => ( <Cell key={`cell-room-${index}`} fill={comparisonPalette[index % comparisonPalette.length]} /> ))}
-                        </Bar>
-                    </BarChart>
-                </ResponsiveContainer>
-            ) : (
-                <div className="flex items-center justify-center h-full text-slate-500 text-sm">No room emission data for this building.</div>
-            )}
-        </ChartContainer>
-      </div>
+          <ChartContainer
+              title={`Top 10 Emitters (Buildings, ${dashboardSelectedYear})`}
+              isLoading={isLoading} error={error}
+              onZoom={allBuildingsChartData.length > 0 ? handleOpenBuildingChartModal : undefined}
+          >
+              <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={allBuildingsChartData.slice(0, 10)} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={slate[200]} horizontal={false} />
+                      <XAxis type="number" tick={{ fill: slate[500], fontSize: 11 }} axisLine={{ stroke: slate[300] }} tickLine={false} tickFormatter={(v) => formatNumber(v,0)} />
+                      <YAxis type="category" dataKey="name" width={140} tick={{ fill: slate[600], fontSize: 11, width: 130 }} interval={0} axisLine={false} tickLine={false} />
+                      <Tooltip content={<CustomTooltip />} cursor={{ fill: slate[100] }}/>
+                      <Bar dataKey="value" name="Emissions" radius={[0, 4, 4, 0]} barSize={16}>
+                          {allBuildingsChartData.slice(0, 10).map((_, index) => ( <Cell key={`cell-bldg-${index}`} fill={comparisonPalette[index % comparisonPalette.length]} /> ))}
+                      </Bar>
+                  </BarChart>
+              </ResponsiveContainer>
+          </ChartContainer>
 
-      {modalChartConfig && (
-          <ChartModal isOpen={isChartModalOpen} onClose={() => setIsChartModalOpen(false)} {...modalChartConfig} />
-      )}
-    </Layout>
+          <ChartContainer
+              title={`Top 10 Emitters (Rooms) ${selectedBuildingForRooms ? `in ${selectedBuildingForRooms}` : ''}`}
+              isLoading={isLoading && !selectedBuildingForRooms} error={error}
+              onZoom={roomChartData.length > 0 ? handleOpenRoomChartModal : undefined}
+              actions={
+                  <div className="relative w-48">
+                      <select
+                          value={selectedBuildingForRooms}
+                          onChange={e => setSelectedBuildingForRooms(e.target.value)}
+                          disabled={isLoading || !allBuildingsData}
+                          className="w-full appearance-none truncate text-xs pl-3 pr-8 py-1.5 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white transition"
+                      >
+                          <option value="">Select Building</option>
+                          {allBuildingsData && Object.keys(allBuildingsData).sort().map(name => (
+                              <option key={name} value={name}>{name}</option>
+                          ))}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                      </div>
+                  </div>
+              }
+          >
+              {!selectedBuildingForRooms ? (
+                  <div className="flex items-center justify-center h-full text-slate-500 text-sm">Please select a building to view room data.</div>
+              ) : roomChartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={roomChartData.slice(0, 10)} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={slate[200]} horizontal={false} />
+                          <XAxis type="number" tick={{ fill: slate[500], fontSize: 11 }} axisLine={{ stroke: slate[300] }} tickLine={false} tickFormatter={(v) => formatNumber(v,0)} />
+                          <YAxis type="category" dataKey="name" width={140} tick={{ fill: slate[600], fontSize: 11, width: 130 }} interval={0} axisLine={false} tickLine={false} />
+                          <Tooltip content={<CustomTooltip />} cursor={{ fill: slate[100] }}/>
+                          <Bar dataKey="value" name="Emissions" radius={[0, 4, 4, 0]} barSize={16}>
+                              {roomChartData.slice(0, 10).map((_, index) => ( <Cell key={`cell-room-${index}`} fill={comparisonPalette[index % comparisonPalette.length]} /> ))}
+                          </Bar>
+                      </BarChart>
+                  </ResponsiveContainer>
+              ) : (
+                  <div className="flex items-center justify-center h-full text-slate-500 text-sm">No room emission data for this building.</div>
+              )}
+          </ChartContainer>
+        </div>
+
+        {modalChartConfig && (
+            <ChartModal isOpen={isChartModalOpen} onClose={() => setIsChartModalOpen(false)} {...modalChartConfig} />
+        )}
+      </Layout>
+    </>
   );
 };
 
