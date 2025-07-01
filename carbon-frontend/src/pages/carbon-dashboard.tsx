@@ -1,4 +1,4 @@
-// src/pages/carbon-dashboard.tsx (REVISI FINAL - DYNAMIC TREND CHART)
+// src/pages/carbon-dashboard.tsx (REVISI FINAL - SEMUA MODAL DENGAN TAB)
 
 "use client";
 
@@ -21,10 +21,28 @@ const monthLabels: { [key: number]: string } = {1:"Jan",2:"Feb",3:"Mar",4:"Apr",
 
 // --- Interfaces (Tidak ada perubahan) ---
 interface DataPoint { year?: string; month?: string; name?: string; total?: number; [key: string]: string | number | undefined; }
-interface PieSliceData { name: string; value: number; }
+interface PieSliceData { name: string; value: number; rank?: number }
 interface RoomData { [roomName: string]: number; }
 interface BuildingData { total_emission: number; rooms: RoomData; }
 interface BuildingJson { [buildingName: string]: BuildingData; }
+interface TableColumn {
+  header: string;
+  accessor: string;
+  format?: (value: any) => string | number;
+}
+interface ChartModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  chartData: any[];
+  chartType: 'bar' | 'pie';
+  dataKey: string;
+  nameKey?: string;
+  xAxisDataKey?: string;
+  colors?: string[];
+  enableTableView?: boolean;
+  tableColumns?: TableColumn[];
+}
 
 // --- Helper Functions (Tidak ada perubahan) ---
 const formatNumber = (num: number | undefined | null, decimals = 0): string => {
@@ -107,9 +125,16 @@ const renderCustomizedPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, 
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
     return (<text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="text-[11px] font-bold pointer-events-none drop-shadow-sm">{`${(percent * 100).toFixed(0)}%`}</text>);
 };
-interface ChartModalProps { isOpen: boolean; onClose: () => void; title: string; chartData: any[]; chartType: 'bar' | 'pie'; dataKey: string; nameKey?: string; xAxisDataKey?: string; colors?: string[]; }
-const ChartModal: React.FC<ChartModalProps> = ({ isOpen, onClose, title, chartData, chartType, dataKey, nameKey, xAxisDataKey, colors = comparisonPalette }) => {
+const ChartModal: React.FC<ChartModalProps> = ({
+    isOpen, onClose, title, chartData, chartType, dataKey,
+    nameKey, xAxisDataKey, colors = comparisonPalette,
+    enableTableView = false, tableColumns = []
+}) => {
+    const [activeView, setActiveView] = useState<'chart' | 'table'>('chart');
+    useEffect(() => { if (isOpen) { setActiveView('chart'); } }, [isOpen, title]);
+
     if (!isOpen) return null;
+
     const renderChart = () => {
         if (chartType === 'bar') {
             const BAR_HEIGHT = 20, BAR_GAP = 14, CHART_VERTICAL_PADDING = 80, MIN_CHART_HEIGHT = 400;
@@ -145,22 +170,65 @@ const ChartModal: React.FC<ChartModalProps> = ({ isOpen, onClose, title, chartDa
         return <p>Unsupported chart type.</p>;
     };
 
+    const renderTable = () => (
+        <div className="overflow-x-auto relative border border-slate-200 rounded-lg">
+            <table className="w-full text-sm text-left text-slate-600">
+                <thead className="text-xs text-slate-700 uppercase bg-slate-100/80 sticky top-0 backdrop-blur-sm">
+                    <tr>
+                        {tableColumns.map((col) => (
+                            <th key={col.accessor} scope="col" className="px-6 py-3 font-medium">
+                                {col.header}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {chartData.map((row, rowIndex) => (
+                        <tr key={rowIndex} className="bg-white border-b last:border-b-0 hover:bg-slate-50 transition-colors">
+                            {tableColumns.map((col) => (
+                                <td key={col.accessor} className="px-6 py-4 whitespace-nowrap">
+                                    {col.format ? col.format(row[col.accessor]) : row[col.accessor] ?? 'N/A'}
+                                </td>
+                            ))}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-center p-4 border-b border-slate-200">
+                <div className="flex justify-between items-center p-4 border-b border-slate-200 flex-shrink-0">
                     <h3 className="text-lg font-semibold text-slate-800">{title}</h3>
                     <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
-                <div className="p-5 flex-grow overflow-y-auto">{renderChart()}</div>
+                <div className="p-5 flex-grow overflow-y-auto">
+                    {enableTableView && (
+                        <div className="mb-5 flex items-center border-b border-slate-200">
+                            <button
+                                onClick={() => setActiveView('chart')}
+                                className={`px-4 py-2.5 text-sm font-semibold transition-colors duration-200 relative -bottom-px ${activeView === 'chart' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}>
+                                Chart View
+                            </button>
+                            <button
+                                onClick={() => setActiveView('table')}
+                                className={`px-4 py-2.5 text-sm font-semibold transition-colors duration-200 relative -bottom-px ${activeView === 'table' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}>
+                                Table View
+                            </button>
+                        </div>
+                    )}
+                    {(activeView === 'chart' || !enableTableView) ? renderChart() : renderTable()}
+                </div>
             </div>
         </div>
     );
 };
 
-// --- Main Dashboard Component ---
+// --- Main Dashboard Component (Semua handler modal diupdate) ---
 const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -170,7 +238,6 @@ const Dashboard = () => {
   const [totalEmissions, setTotalEmissions] = useState<number | null>(null);
   const [topEmittingBuildingName, setTopEmittingBuildingName] = useState<string | null>(null);
   
-  // State untuk data chart
   const [yearlyTrendData, setYearlyTrendData] = useState<DataPoint[]>([]);
   const [monthlyTrendData, setMonthlyTrendData] = useState<DataPoint[]>([]);
   const [devicePieData, setDevicePieData] = useState<PieSliceData[]>([]);
@@ -180,7 +247,6 @@ const Dashboard = () => {
   const [selectedBuildingForRooms, setSelectedBuildingForRooms] = useState<string>("");
   const [roomChartData, setRoomChartData] = useState<PieSliceData[]>([]);
   
-  // State untuk modal
   const [isChartModalOpen, setIsChartModalOpen] = useState(false);
   const [modalChartConfig, setModalChartConfig] = useState<Omit<ChartModalProps, 'isOpen' | 'onClose' > | null>(null);
 
@@ -195,7 +261,7 @@ const Dashboard = () => {
     return res.json() as Promise<T>;
   }, []);
 
-  // Fetch data awal sekali saja untuk mendapatkan daftar tahun dan data tren tahunan
+  // Fetch initial data
   useEffect(() => {
     const fetchInitialData = async () => {
         try {
@@ -215,17 +281,15 @@ const Dashboard = () => {
     fetchInitialData();
   }, [fetchApi]);
 
-  // useEffect ini berjalan SETIAP KALI `dashboardSelectedYear` berubah.
-  // Ini adalah inti dari semua pembaruan data di halaman.
+  // Fetch data on year change
   useEffect(() => {
     const fetchAllDataForSelectedYear = async () => {
         setIsLoading(true);
         setError(null);
-        setSelectedBuildingForRooms(""); // Reset pilihan gedung
+        setSelectedBuildingForRooms(""); 
         setRoomChartData([]);
 
         try {
-            // 1. Ambil data gedung dan perangkat berdasarkan tahun yang dipilih
             const buildingJson = await fetchApi<{ buildings: BuildingJson }>(`/emissions/building?year=${encodeURIComponent(dashboardSelectedYear)}`);
             const buildings = buildingJson.buildings;
             const buildingRawData = Object.entries(buildings).map(([name, data]) => ({ name, value: data.total_emission })).filter(item => item.value > 0).sort((a, b) => b.value - a.value);
@@ -251,7 +315,6 @@ const Dashboard = () => {
                 setAllDeviceDataForModal([]);
             }
 
-            // 2. LOGIKA BARU: Jika tahun spesifik dipilih, ambil data bulanannya.
             if (dashboardSelectedYear !== "All") {
                 const monthlyJson = await fetchApi<{ emissions: { [c: string]: { [m: string]: number }} }>(`/emissions/campus?year=${dashboardSelectedYear}&aggregate=monthly_total`);
                 const structured: DataPoint[] = [];
@@ -259,7 +322,7 @@ const Dashboard = () => {
                     Object.entries(monthData).forEach(([month, val]) => {
                         let e = structured.find(d => d.month === month);
                         if (!e) {
-                            e = { month, total: 0, year: dashboardSelectedYear }; // Simpan tahun untuk tooltip
+                            e = { month, total: 0, year: dashboardSelectedYear };
                             structured.push(e);
                         }
                         (e.total as number) += val;
@@ -267,20 +330,18 @@ const Dashboard = () => {
                 });
                 setMonthlyTrendData(structured.sort((a, b) => parseInt(a.month!) - parseInt(b.month!)));
             } else {
-                // Jika "All Years" dipilih, kosongkan data bulanan
                 setMonthlyTrendData([]);
             }
-
         } catch (err: any) {
             setError(err.message);
         } finally {
             setIsLoading(false);
         }
     };
-    
     fetchAllDataForSelectedYear();
   }, [dashboardSelectedYear, fetchApi]);
   
+  // Update room data when building selection changes
   useEffect(() => {
     if (selectedBuildingForRooms && allBuildingsData) {
         const building = allBuildingsData[selectedBuildingForRooms];
@@ -291,15 +352,69 @@ const Dashboard = () => {
     } else { setRoomChartData([]); }
   }, [selectedBuildingForRooms, allBuildingsData]);
 
-  // Variabel untuk data yang ditampilkan di kartu statistik
   const displayedTotalEmissions = dashboardSelectedYear === "All" && grandTotalEmissions !== null ? grandTotalEmissions : totalEmissions;
   const averageMonthlyEmission = dashboardSelectedYear === "All" 
       ? (grandTotalEmissions && availableYears.length > 0 ? grandTotalEmissions / (availableYears.length * 12) : null)
       : (totalEmissions !== null ? totalEmissions / 12 : null);
 
-  const handleOpenBuildingChartModal = () => {setModalChartConfig({title: `All Building Emissions (${dashboardSelectedYear})`, chartData: allBuildingsChartData, chartType: 'bar', dataKey: 'value', xAxisDataKey: 'name', colors: comparisonPalette}); setIsChartModalOpen(true);};
-  const handleOpenDeviceChartModal = () => {setModalChartConfig({title: `All Device Emissions (${dashboardSelectedYear})`, chartData: allDeviceDataForModal, chartType: 'pie', dataKey: 'value', nameKey: 'name', colors: devicePiePalette}); setIsChartModalOpen(true);};
-  const handleOpenRoomChartModal = () => {setModalChartConfig({title: `Room Emissions in ${selectedBuildingForRooms} (${dashboardSelectedYear})`, chartData: roomChartData, chartType: 'bar', dataKey: 'value', xAxisDataKey: 'name', colors: comparisonPalette}); setIsChartModalOpen(true);};
+  const handleOpenBuildingChartModal = () => {
+    const rankedData = allBuildingsChartData.map((item, index) => ({ ...item, rank: index + 1 }));
+    setModalChartConfig({
+        title: `All Building Emissions (${dashboardSelectedYear})`,
+        chartData: rankedData,
+        chartType: 'bar',
+        dataKey: 'value',
+        xAxisDataKey: 'name',
+        colors: comparisonPalette,
+        enableTableView: true,
+        tableColumns: [
+            { header: '#', accessor: 'rank' },
+            { header: 'Building Name', accessor: 'name' },
+            { header: 'Emissions (kg CO₂e)', accessor: 'value', format: (val) => formatNumber(val, 2) }
+        ]
+    });
+    setIsChartModalOpen(true);
+  };
+  
+  // === PERUBAHAN DI SINI ===
+  const handleOpenDeviceChartModal = () => {
+    const rankedData = allDeviceDataForModal.map((item, index) => ({ ...item, rank: index + 1 }));
+    setModalChartConfig({
+        title: `All Device Emissions (${dashboardSelectedYear})`,
+        chartData: rankedData,
+        // Diubah menjadi Bar Chart untuk konsistensi dan kemudahan membaca daftar panjang
+        chartType: 'bar', 
+        dataKey: 'value',
+        xAxisDataKey: 'name',
+        colors: devicePiePalette,
+        enableTableView: true, // AKTIFKAN TABEL
+        tableColumns: [
+            { header: '#', accessor: 'rank' },
+            { header: 'Device Type', accessor: 'name' },
+            { header: 'Emissions (kg CO₂e)', accessor: 'value', format: (val) => formatNumber(val, 2) }
+        ]
+    });
+    setIsChartModalOpen(true);
+  };
+
+  const handleOpenRoomChartModal = () => {
+    const rankedData = roomChartData.map((item, index) => ({ ...item, rank: index + 1 }));
+    setModalChartConfig({
+        title: `Room Emissions in ${selectedBuildingForRooms} (${dashboardSelectedYear})`,
+        chartData: rankedData,
+        chartType: 'bar',
+        dataKey: 'value',
+        xAxisDataKey: 'name',
+        colors: comparisonPalette,
+        enableTableView: true,
+        tableColumns: [
+            { header: '#', accessor: 'rank' },
+            { header: 'Room Name', accessor: 'name' },
+            { header: 'Emissions (kg CO₂e)', accessor: 'value', format: (val) => formatNumber(val, 2) }
+        ]
+    });
+    setIsChartModalOpen(true);
+  };
 
   return (
     <>
@@ -310,12 +425,12 @@ const Dashboard = () => {
       </Head>
 
       <Layout>
+        {/* Header Section */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
             <div>
                 <h1 className="text-2xl font-bold text-slate-800">Carbon Emissions Dashboard</h1>
                 <p className="mt-1 text-sm text-slate-600">An overview of ITB's carbon footprint.</p>
             </div>
-            
             <div className="relative w-full sm:w-auto">
                 <select
                     value={dashboardSelectedYear}
@@ -333,37 +448,21 @@ const Dashboard = () => {
             </div>
         </div>
 
-        {/* Kartu Statistik */}
+        {/* Stats Cards Section */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
             <DashboardCard title={`Total Emissions (${dashboardSelectedYear})`} value={displayedTotalEmissions ?? '-'} unit="kg CO₂e" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg>} isLoading={isLoading} />
             <DashboardCard title={`Top Emitter (${dashboardSelectedYear})`} value={topEmittingBuildingName ?? 'N/A'} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H5a1 1 0 110-2V4zm3 1h2v1H7V5zm0 2h2v1H7V7zm0 2h2v1H7V9zm0 2h2v1H7v-1zm4-6h2v1h-2V5zm0 2h2v1h-2V7zm0 2h2v1h-2V9zm0 2h2v1h-2v-1z" clipRule="evenodd" /></svg>} isLoading={isLoading} />
             <DashboardCard title={`Avg. Monthly (${dashboardSelectedYear})`} value={averageMonthlyEmission ?? '-'} unit="kg CO₂e" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>} isLoading={isLoading} />
         </div>
 
-        {/* Grid untuk Chart */}
+        {/* Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ChartContainer
-              // === PERUBAHAN 1: Judul dinamis ===
-              title={
-                dashboardSelectedYear === 'All'
-                  ? "Annual Emissions Trend (All Campuses)"
-                  : `Monthly Trend for ${dashboardSelectedYear}`
-              }
-              isLoading={isLoading}
-              error={error}
-              noZoom={true}
-              // === PERUBAHAN 2: Tombol actions dihapus ===
+              title={ dashboardSelectedYear === 'All' ? "Annual Emissions Trend (All Campuses)" : `Monthly Trend for ${dashboardSelectedYear}`}
+              isLoading={isLoading} error={error} noZoom={true}
           >
               <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    // === PERUBAHAN 3: Data dinamis ===
-                    data={
-                      dashboardSelectedYear === 'All'
-                        ? yearlyTrendData.map(d => ({ ...d, name: d.year }))
-                        : monthlyTrendData.map(d => ({ ...d, name: monthLabels[parseInt(d.month!)] || d.month }))
-                    }
-                    margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
-                  >
+                  <LineChart data={ dashboardSelectedYear === 'All' ? yearlyTrendData.map(d => ({ ...d, name: d.year })) : monthlyTrendData.map(d => ({ ...d, name: monthLabels[parseInt(d.month!)] || d.month })) } margin={{ top: 5, right: 20, left: 0, bottom: 5 }} >
                       <CartesianGrid strokeDasharray="3 3" stroke={slate[200]} />
                       <XAxis dataKey="name" tick={{ fill: slate[500], fontSize: 11 }} axisLine={{ stroke: slate[300] }} tickLine={false} padding={{ left: 10, right: 10 }} />
                       <YAxis tick={{ fill: slate[500], fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => formatNumber(v,0)} width={50} />
