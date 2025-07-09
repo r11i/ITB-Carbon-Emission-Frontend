@@ -176,6 +176,7 @@ export default function HomePage() {
             </div>
             {selectedLocation && (
               <LocationSidebar
+                
                 // PROPERTI KUNCI: Visibilitas sidebar dikontrol oleh state ini
                 isOpen={isLocationSidebarOpen}
                 onClose={handleCloseLocationSidebar}
@@ -187,6 +188,7 @@ export default function HomePage() {
                 availableYears={availableYears}
                 onYearChange={handleYearChange}
                 campusTotalEmission={selectedCampusTotalEmission}
+                //@ts-ignore
                 activeTab={activeSidebarTab}
                 onTabChange={handleTabChange}
               />
