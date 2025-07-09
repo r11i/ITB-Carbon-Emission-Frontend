@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 const navItems = [
   { name: "Map View", href: "/" },
   { name: "Dashboard", href: "/carbon-dashboard" },
-  { name: "Input", href: "/device-table", auth: true },
+  { name: "Device Management", href: "/device-table", auth: true },
   { name: "About", href: "/about" },
 ];
 

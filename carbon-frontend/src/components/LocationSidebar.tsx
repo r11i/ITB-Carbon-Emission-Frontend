@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
-import { useRouter } from "next/router"; 
+import { useRouter } from "next/router";
 import {
   LineChart,
   Line,
@@ -16,6 +16,8 @@ import {
 import type { LocationData } from "./MapComponent";
 
 // --- Tipe Data ---
+// Tipe RoomData dan rooms di BuildingData disimpan jika akan digunakan di masa depan,
+// tetapi komponen yang menampilkannya (RoomList) telah dihapus.
 interface RoomData {
   name: string;
   emission: number;
@@ -37,8 +39,6 @@ interface LocationSidebarProps {
   availableYears: string[];
   onYearChange: (newYear: string) => void;
   campusTotalEmission: number | null;
-  activeTab: "Summary" | "Buildings";
-  onTabChange: (newTab: "Summary" | "Buildings") => void;
 }
 
 // --- Konstanta & Komponen Helper ---
@@ -66,35 +66,16 @@ const formatNumber = (num: number | undefined | null, decimals = 1): string => {
   return num.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 };
 
-const RoomList: React.FC<{ rooms: RoomData[] }> = ({ rooms }) => {
-  const sortedRooms = useMemo(() => {
-    return [...rooms].sort((a, b) => b.emission - a.emission);
-  }, [rooms]);
-
-  return (
-    <div className="mt-2 ml-8 pl-4 py-2 border-l-2 border-blue-200 bg-gray-50/50 rounded-r-md">
-      <h4 className="text-xs font-bold text-gray-600 mb-2 uppercase tracking-wider">Room Details</h4>
-      <ul className="space-y-1">
-        {sortedRooms.map((room, index) => (
-          <li key={`${room.name}-${index}`} className="flex justify-between items-center text-sm py-1">
-            <span className="text-gray-700 w-3/4 pr-2">{room.name}</span>
-            <span className="font-semibold text-gray-800 text-right">{formatNumber(room.emission)} kg CO₂e</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-};
-
+// Komponen RoomList dan logika terkait bangunan telah dihapus.
 
 const LocationSidebar: React.FC<LocationSidebarProps> = ({
-  isOpen, onClose, location, buildings = [], isLoading: isLoadingParent, error: errorParent, selectedYear, availableYears = ["All"], onYearChange, campusTotalEmission, activeTab, onTabChange,
+  isOpen, onClose, location, buildings = [], isLoading: isLoadingParent, error: errorParent, selectedYear, availableYears = ["All"], onYearChange, campusTotalEmission,
 }) => {
-  const router = useRouter(); 
+  const router = useRouter();
   const [trendChartData, setTrendChartData] = useState<Array<{ year: string; emissions: number }>>([]);
   const [isLoadingChart, setIsLoadingChart] = useState(true);
   const [errorChart, setErrorChart] = useState<string | null>(null);
-  const [expandedBuildingName, setExpandedBuildingName] = useState<string | null>(null);
+  // State `expandedBuildingName` telah dihapus
 
   useEffect(() => {
     if (isOpen && location && location.name.toLowerCase().includes("ganesha")) {
@@ -135,28 +116,15 @@ const LocationSidebar: React.FC<LocationSidebarProps> = ({
         setErrorChart(null);
     }
   }, [isOpen, location]);
-  
-  useEffect(() => {
-    setExpandedBuildingName(null);
-  }, [activeTab, selectedYear]);
 
   if (!location) return null;
 
   const imagePlaceholderUrl = ganeshaCampusInfo.image;
 
-  const sortedBuildings = useMemo(() => {
-    if (!isLoadingParent && !errorParent && buildings.length > 0) {
-      return [...buildings].sort((a, b) => b.total_emission - a.total_emission);
-    }
-    return [];
-  }, [buildings, isLoadingParent, errorParent]);
-
-  const handleBuildingClick = (buildingName: string) => {
-    setExpandedBuildingName(prev => (prev === buildingName ? null : buildingName));
-  };
+  // `sortedBuildings` dan `handleBuildingClick` telah dihapus
   
   const handleNavigateToDashboard = () => {
-    onClose(); 
+    onClose();
     setTimeout(() => {
       router.push('/carbon-dashboard');
     }, 300);
@@ -179,11 +147,6 @@ const LocationSidebar: React.FC<LocationSidebarProps> = ({
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/*
-          --- PERUBAHAN DI SINI ---
-          Header sekarang menggunakan bg-blue-100 dengan border bawah
-          dan warna teks yang disesuaikan agar serasi.
-        */}
         <div className="p-4 bg-blue-100 border-b border-blue-200">
           <div className="flex justify-between items-center">
             <div>
@@ -228,82 +191,42 @@ const LocationSidebar: React.FC<LocationSidebarProps> = ({
               {availableYears.map((year) => (<option key={year} value={year}>{year === "All" ? "All Years" : year}</option>))}
             </select>
           </div>
-          <div className="border-b border-gray-200 px-4">
-            <nav className="flex space-x-8">
-              {(["Summary", "Buildings"] as const).map((tab) => (
-                <button key={tab} onClick={() => onTabChange(tab)}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${ activeTab === tab ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}>
-                  {tab}
-                  {tab === "Buildings" && buildings.length > 0 && (<span className="ml-2 px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">{buildings.length}</span>)}
-                </button>
-              ))}
-            </nav>
-          </div>
-          <div className="p-4">
-            {activeTab === "Summary" ? (
-              <>
-                <h3 className="text-lg font-semibold text-gray-900">About This Campus</h3>
-                <p className="text-sm text-gray-600 mt-2">
-                  Detailed carbon emissions data for {location.name}.
-                  {buildings.length > 0 ? ` The campus has ${buildings.length} buildings with tracked energy consumption contributing to the total carbon footprint.` : " Emission data by building is not yet available for the selected period."}
-                </p>
-                <h3 className="text-lg font-semibold text-gray-900 mt-6">Emission Trends</h3>
-                <p className="text-sm text-gray-600 mt-2">
-                  Annual emission trends for {location.name}.
-                </p>
-                <div className="mt-6">
-                  {isLoadingChart ? ( <ChartSkeleton />
-                  ) : errorChart ? ( <p className="text-center text-red-500 py-4">Error loading trends: {errorChart}</p>
-                  ) : trendChartData.length === 0 ? ( <p className="text-center text-gray-500 py-4">No annual emission trend data available.</p>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={trendChartData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                        <XAxis dataKey="year" stroke="#6b7280" tick={{ fontSize: 12 }} />
-                        <YAxis stroke="#6b7280" tick={{ fontSize: 12 }} tickFormatter={(value) => formatNumber(value, 0)} />
-                        <Tooltip
-                          formatter={(value: number) => [`${formatNumber(value,0)} kg CO₂e`, "Emissions"]}
-                          labelStyle={{ fontWeight: 'bold', color: '#374151' }} itemStyle={{ color: '#1e40af' }}
-                          contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', border: '1px solid #e5e7eb', borderRadius: '0.375rem', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)' }}
-                          cursor={{ stroke: '#d1d5db', strokeWidth: 1 }}
-                        />
-                        <Line type="monotone" dataKey="emissions" name="Emissions" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 4, fill: "#2563eb", strokeWidth: 1, stroke: "#fff" }} activeDot={{ r: 6, stroke: "#1d4ed8", strokeWidth: 2, fill: "#fff" }} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-              </>
-            ) : ( 
-              sortedBuildings.length > 0 ? (
-              <div className="space-y-2">
-                {sortedBuildings.map((b, i) => (
-                  <div key={`${b.name}-${i}`} className="border border-gray-200 rounded-lg bg-white overflow-hidden">
-                    <button
-                      onClick={() => handleBuildingClick(b.name)}
-                      className="w-full flex justify-between items-center p-3 text-left hover:bg-gray-50 transition-colors duration-150 ease-in-out"
-                    >
-                      <div className="flex items-center">
-                        <div className={`w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full ${i < 3 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700'} font-medium mr-3`}>{i + 1}</div>
-                        <span className="font-medium text-gray-900">{b.name}</span>
-                      </div>
-                      <div className="text-right ml-2 flex-shrink-0">
-                        <div className="text-gray-900 font-semibold">{formatNumber(b.total_emission)}</div>
-                        <div className="text-xs text-gray-500">{b.unit || "kg CO₂e"}</div>
-                      </div>
-                    </button>
-                    {expandedBuildingName === b.name && (
-                      b.rooms && b.rooms.length > 0 ? (
-                        <RoomList rooms={b.rooms} />
-                      ) : (
-                        <p className="px-4 pb-3 pt-1 ml-10 text-xs text-gray-500">No detailed room data available.</p>
-                      )
-                    )}
-                  </div>
-                ))}
-              </div>
-              ) : isLoadingParent ? ( <p className="text-sm text-gray-500 text-center py-4">Loading building data...</p>
-              ) : ( <p className="text-sm text-gray-500 text-center py-4">No building emission data found for {selectedYear === "All" ? "this campus" : `the year ${selectedYear}`}.</p>)
-            )}
+          
+          {/* --- Navigasi Tab Telah Dihapus --- */}
+
+          <div className="p-4 border-t border-gray-200 mt-2">
+            {/* --- Konten sekarang hanya menampilkan bagian Summary --- */}
+            <h3 className="text-lg font-semibold text-gray-900">About This Campus</h3>
+            <p className="text-sm text-gray-600 mt-2">
+              Detailed carbon emissions data for {location.name}.
+              {buildings.length > 0 ? ` The campus has ${buildings.length} buildings with tracked energy consumption contributing to the total carbon footprint.` : " Emission data by building is not yet available for the selected period."}
+            </p>
+            <h3 className="text-lg font-semibold text-gray-900 mt-6">Emission Trends</h3>
+            <p className="text-sm text-gray-600 mt-2">
+              Annual emission trends for {location.name}.
+            </p>
+            <div className="mt-6">
+              {isLoadingChart ? ( <ChartSkeleton />
+              ) : errorChart ? ( <p className="text-center text-red-500 py-4">Error loading trends: {errorChart}</p>
+              ) : trendChartData.length === 0 ? ( <p className="text-center text-gray-500 py-4">No annual emission trend data available.</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={trendChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                    <XAxis dataKey="year" stroke="#6b7280" tick={{ fontSize: 12 }} />
+                    <YAxis stroke="#6b7280" tick={{ fontSize: 12 }} tickFormatter={(value) => formatNumber(value, 0)} />
+                    <Tooltip
+                      formatter={(value: number) => [`${formatNumber(value,0)} kg CO₂e`, "Emissions"]}
+                      labelStyle={{ fontWeight: 'bold', color: '#374151' }} itemStyle={{ color: '#1e40af' }}
+                      contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', border: '1px solid #e5e7eb', borderRadius: '0.375rem', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)' }}
+                      cursor={{ stroke: '#d1d5db', strokeWidth: 1 }}
+                    />
+                    <Line type="monotone" dataKey="emissions" name="Emissions" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 4, fill: "#2563eb", strokeWidth: 1, stroke: "#fff" }} activeDot={{ r: 6, stroke: "#1d4ed8", strokeWidth: 2, fill: "#fff" }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+            {/* --- Seluruh bagian untuk menampilkan daftar bangunan telah dihapus --- */}
           </div>
         </div>
 
