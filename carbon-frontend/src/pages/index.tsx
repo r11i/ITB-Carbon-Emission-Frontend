@@ -46,6 +46,14 @@ export default function HomePage() {
 
   // FUNGSI KUNCI: Dipanggil oleh MapComponent saat lokasi diklik.
   // Fungsi ini memperbarui lokasi yang dipilih dan membuka sidebar.
+  // const handleLocationSelect = useCallback((location: LocationData, openSidebar = true) => {
+  //   setSelectedLocation(location);
+  //   if (openSidebar) {
+  //     setIsLocationSidebarOpen(true); // <-- BARIS INI YANG MEMBUKA SIDEBAR
+  //   }
+  //   setActiveSidebarTab("Summary"); // Reset tab ke Summary setiap kali lokasi baru dipilih
+  // }, []);
+
   const handleLocationSelect = useCallback((location: LocationData, openSidebar = true) => {
     const fixedLocation: LocationData = {
       ...location,
@@ -56,6 +64,7 @@ export default function HomePage() {
     if (openSidebar) setIsLocationSidebarOpen(true);
     setActiveSidebarTab("Summary");
   }, []);
+
 
   // Efek untuk memilih lokasi awal saat aplikasi dimuat, tanpa membuka sidebar
   useEffect(() => {
