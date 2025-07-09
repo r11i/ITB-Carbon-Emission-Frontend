@@ -39,14 +39,22 @@ export default function HomePage() {
   const [selectedCampusTotalEmission, setSelectedCampusTotalEmission] = useState<number | null>(null);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"Summary" | "Buildings">("Summary");
 
+  const campusIdMap: Record<string, string> = {
+    "ITB Ganesha Campus": "Ganesha",
+    "ITB Jatinangor Campus": "Jatinangor",
+  };
+
   // FUNGSI KUNCI: Dipanggil oleh MapComponent saat lokasi diklik.
   // Fungsi ini memperbarui lokasi yang dipilih dan membuka sidebar.
   const handleLocationSelect = useCallback((location: LocationData, openSidebar = true) => {
-    setSelectedLocation(location);
-    if (openSidebar) {
-      setIsLocationSidebarOpen(true); // <-- BARIS INI YANG MEMBUKA SIDEBAR
-    }
-    setActiveSidebarTab("Summary"); // Reset tab ke Summary setiap kali lokasi baru dipilih
+    const fixedLocation: LocationData = {
+      ...location,
+      id: location.id || campusIdMap[location.name] || "Unknown",
+    };
+    console.log("📍 Fixed selectedLocation:", fixedLocation);
+    setSelectedLocation(fixedLocation);
+    if (openSidebar) setIsLocationSidebarOpen(true);
+    setActiveSidebarTab("Summary");
   }, []);
 
   // Efek untuk memilih lokasi awal saat aplikasi dimuat, tanpa membuka sidebar
@@ -112,9 +120,12 @@ export default function HomePage() {
 
   // Trigger pengambilan data ketika lokasi atau tahun berubah
   useEffect(() => {
+    console.log('selectedYear', selectedYear)
+    console.log('selectedLoc', selectedLocation)
     if (selectedLocation?.id) {
      // @ts-ignore
       fetchDataForSelectedCampusAndYear(selectedLocation.id, selectedYear);
+      console.log('selectedloca', selectedLocation)
     }
   }, [selectedLocation, selectedYear, fetchDataForSelectedCampusAndYear]);
   
