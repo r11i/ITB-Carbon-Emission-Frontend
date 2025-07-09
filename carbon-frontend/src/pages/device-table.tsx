@@ -151,15 +151,30 @@ export default function DeviceTablePage() {
   }, [selectedBuilding, fetchWithAuth]);
 
   const fetchDevices = useCallback(() => {
-    if (selectedRoomName) {
+    if (selectedRoomName && selectedBuilding) {
       setIsLoading(true);
       setDeviceList([]);
-      fetchWithAuth(`${API_BASE_URL}/devices?room_name=${encodeURIComponent(selectedRoomName)}`)
-        .then(res => res.json()).then(data => setDeviceList(data.devices || []))
-        .catch(() => setError("Failed to load devices."))
-        .finally(() => setIsLoading(false));
+
+      const query = new URLSearchParams({
+        room_name: selectedRoomName,
+        building_name: selectedBuilding,
+      });
+
+      fetchWithAuth(`${API_BASE_URL}/devices?${query.toString()}`)
+        .then(res => res.json())
+        .then(data => {
+          setDeviceList(data.devices || []);
+          setError("");
+        })
+        .catch(() => {
+          setError("Failed to load devices.");
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
     }
-  }, [selectedRoomName, fetchWithAuth]);
+  }, [selectedRoomName, selectedBuilding, fetchWithAuth]);
+
 
   useEffect(() => {
     setDeviceList([]);
