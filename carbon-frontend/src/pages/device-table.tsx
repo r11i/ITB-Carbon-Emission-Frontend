@@ -17,7 +17,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 // --- TIPE DATA & KONSTANTA ---
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_BASE_URL = "/api";
 const GANESHA_CAMPUS_API_NAME = "Ganesha";
 
 type ModalType = 
