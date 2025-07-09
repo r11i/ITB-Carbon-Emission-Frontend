@@ -1,4 +1,3 @@
-// pages/api/rooms/index.js
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -15,10 +14,11 @@ export default async function handler(req, res) {
   const { building_name } = req.query;
 
   if (!building_name) {
-    return res.status(200).json({ rooms: [] }); // For dependent dropdown
+    return res.status(200).json({ rooms: [] }); // For dependent dropdown fallback
   }
 
   try {
+    // Find building_id first
     const { data: buildingData, error: buildingError } = await supabase
       .from('Buildings')
       .select('building_id')
@@ -28,20 +28,23 @@ export default async function handler(req, res) {
     if (buildingError) throw new Error(`Finding building ID: ${buildingError.message}`);
     if (!buildingData) return res.status(200).json({ rooms: [] });
 
+    // Fetch rooms for the building
     const { data: roomData, error: roomError } = await supabase
       .from('Rooms')
-      .select('room_name')
+      .select('room_id, room_name')
       .eq('building_id', buildingData.building_id);
 
     if (roomError) throw new Error(`Fetching rooms: ${roomError.message}`);
 
-    const roomNames = roomData
-      ? roomData.map((r) => r.room_name).sort((a, b) => a.localeCompare(b))
+    const rooms = roomData
+      ? roomData
+          .map((r) => ({ room_name: r.room_name, room_id: r.room_id }))
+          .sort((a, b) => a.room_name.localeCompare(b.room_name))
       : [];
 
-    res.status(200).json({ rooms: roomNames });
+    return res.status(200).json({ rooms });
   } catch (err) {
-    console.error(`Server error fetching rooms for ${building_name}:`, err.message);
-    res.status(500).json({ error: err.message });
+    console.error(`❌ Server error fetching rooms for ${building_name}:`, err.message);
+    return res.status(500).json({ error: err.message });
   }
 }
