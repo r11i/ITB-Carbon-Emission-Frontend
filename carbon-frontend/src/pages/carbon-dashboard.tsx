@@ -85,7 +85,7 @@ const ChartContainer: React.FC<ChartContainerProps> = ({ title, children, isLoad
                 {!noZoom && onZoom && !isLoading && !error && (
                     <button onClick={onZoom} title="View Full Chart" className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors">
                         
-                        View More >
+                        View More {'>'}
                     </button>
                 )}
             </div>
