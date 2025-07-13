@@ -251,7 +251,7 @@ export default function DeviceTablePage() {
                 if (!selectedMonth || !selectedDevice) throw new Error("Month/Year is required.");
                 url = `${API_BASE_URL}/emissions/device_input`;
                 method = 'POST';
-                payload = { device_id: selectedDevice.device_id, device_name: selectedDevice.device_name, campus_name: GANESHA_CAMPUS_API_NAME, building_name: selectedBuilding, room_name: selectedRoomName, usage_hours: parseInt(formData.usageHours), year: selectedMonth.getFullYear(), month: selectedMonth.getMonth() + 1 };
+                payload = { device_id: selectedDevice.device_id, device_power: selectedDevice.device_power, device_name: selectedDevice.device_name, campus_name: GANESHA_CAMPUS_API_NAME, building_name: selectedBuilding, room_name: selectedRoomName, usage_hours: parseInt(formData.usageHours), year: selectedMonth.getFullYear(), month: selectedMonth.getMonth() + 1 };
                 successMessage = 'Usage added successfully.';
                 break;
             case 'UPDATE_USAGE':
