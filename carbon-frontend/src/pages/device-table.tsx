@@ -187,7 +187,7 @@ export default function DeviceTablePage() {
     setUsageList([]);
     if (selectedDevice) {
       setIsLoading(true);
-      fetchWithAuth(`${API_BASE_URL}/emissions/device_usage?device_id=${selectedDevice.device_id}`)
+      fetchWithAuth(`${API_BASE_URL}/device-usages?device_id=${selectedDevice.device_id}`)
         .then(res => res.json()).then(data => setUsageList(data.usage_records || []))
         .catch(() => setError("Failed to load usage data."))
         .finally(() => setIsLoading(false));
@@ -232,7 +232,7 @@ export default function DeviceTablePage() {
         
         switch (modalType) {
             case 'ADD_DEVICE':
-                url = `${API_BASE_URL}/devices/add`;
+                url = `${API_BASE_URL}/devices`;
                 method = 'POST';
                 payload = { device_name: formData.deviceName, device_power: parseInt(formData.devicePower), room_id: room!.room_id };
                 successMessage = 'Device added successfully.';
@@ -250,20 +250,20 @@ export default function DeviceTablePage() {
                 break;
             case 'ADD_USAGE':
                 if (!selectedMonth || !selectedDevice) throw new Error("Month/Year is required.");
-                url = `${API_BASE_URL}/emissions/device_input`;
+                url = `${API_BASE_URL}/device-usages`;
                 method = 'POST';
-                payload = { device_id: selectedDevice.device_id, device_name: selectedDevice.device_name, campus_name: GANESHA_CAMPUS_API_NAME, building_name: selectedBuilding, room_name: selectedRoomName, usage_hours: parseInt(formData.usageHours), year: selectedMonth.getFullYear(), month: selectedMonth.getMonth() + 1 };
+                payload = { device_id: selectedDevice.device_id, device_power: selectedDevice.device_power, device_name: selectedDevice.device_name, campus_name: GANESHA_CAMPUS_API_NAME, building_name: selectedBuilding, room_name: selectedRoomName, usage_hours: parseInt(formData.usageHours), year: selectedMonth.getFullYear(), month: selectedMonth.getMonth() + 1 };
                 successMessage = 'Usage added successfully.';
                 break;
             case 'UPDATE_USAGE':
                 if (!selectedMonth || !selectedDevice || !itemToEdit) throw new Error("Data is incomplete.");
-                url = `${API_BASE_URL}/emissions/device_usage/update`;
+                url = `${API_BASE_URL}/device-usages`;
                 method = 'PUT';
                 payload = { usage_id: (itemToEdit as UsageRecord).usage_id, device_id: selectedDevice.device_id, year: (itemToEdit as UsageRecord).year, month: (itemToEdit as UsageRecord).month, usage_hours: parseInt(formData.usageHours) };
                 successMessage = 'Usage updated successfully.';
                 break;
             case 'DELETE_USAGE':
-                url = `${API_BASE_URL}/emissions/device_usage/delete`;
+                url = `${API_BASE_URL}/device-usages`;
                 method = 'DELETE';
                 payload = { usage_id: (itemToEdit as UsageRecord).usage_id };
                 successMessage = 'Usage deleted successfully.';
@@ -282,7 +282,7 @@ export default function DeviceTablePage() {
                 setSelectedDevice(null);
             }
         } else if (selectedDevice) {
-            fetchWithAuth(`${API_BASE_URL}/emissions/device_usage?device_id=${selectedDevice.device_id}`)
+            fetchWithAuth(`${API_BASE_URL}/device-usages?device_id=${selectedDevice.device_id}`)
              .then(r => r.json()).then(d => setUsageList(d.usage_records || []));
         }
 
