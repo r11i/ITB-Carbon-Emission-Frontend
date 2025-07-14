@@ -1,4 +1,4 @@
-// src/pages/carbon-dashboard.tsx (REVISI FINAL - SEMUA MODAL DENGAN TAB)
+// src/pages/carbon-dashboard.tsx (REVISI - GRAFIK DIGESER KIRI)
 
 "use client";
 
@@ -50,6 +50,50 @@ const formatNumber = (num: number | undefined | null, decimals = 0): string => {
   return num.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 };
 const formatTooltipValue = (value: number): string => `${formatNumber(value, 1)} kg CO₂e`;
+
+// --- KOMPONEN KUSTOM UNTUK LABEL Y-AXIS ---
+interface CustomYAxisTickProps {
+  x?: number;
+  y?: number;
+  payload?: { value: string };
+}
+const CustomYAxisTick: React.FC<CustomYAxisTickProps> = ({ x, y, payload }) => {
+  const text = payload?.value || '';
+  const MAX_CHARS_PER_LINE = 25;
+
+  if (!text) return null;
+
+  if (text.length <= MAX_CHARS_PER_LINE) {
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text x={0} y={0} dy={4} textAnchor="end" fill={slate[600]} className="text-xs">
+          {text}
+        </text>
+      </g>
+    );
+  }
+
+  let splitIndex = text.lastIndexOf(' ', MAX_CHARS_PER_LINE);
+  if (splitIndex === -1) {
+    splitIndex = MAX_CHARS_PER_LINE;
+  }
+  
+  const line1 = text.substring(0, splitIndex);
+  let line2 = text.substring(splitIndex + 1);
+
+  if (line2.length > MAX_CHARS_PER_LINE) {
+    line2 = line2.substring(0, MAX_CHARS_PER_LINE - 3) + '...';
+  }
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={0} y={-5} textAnchor="end" fill={slate[600]} className="text-xs">
+        <tspan x={0}>{line1}</tspan>
+        <tspan x={0} dy="1.2em">{line2}</tspan>
+      </text>
+    </g>
+  );
+};
 
 // --- Reusable UI Components (Tidak ada perubahan) ---
 const LoadingSpinner: React.FC<{ size?: 'sm' | 'md' | 'lg' }> = ({ size = 'md' }) => {
@@ -142,10 +186,10 @@ const ChartModal: React.FC<ChartModalProps> = ({
             const calculatedHeight = Math.max(MIN_CHART_HEIGHT, chartData.length * (BAR_HEIGHT + BAR_GAP) + CHART_VERTICAL_PADDING);
             return (
                 <ResponsiveContainer width="100%" height={calculatedHeight}>
-                    <BarChart data={chartData} layout="vertical" margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                    <BarChart data={chartData} layout="vertical" margin={{ top: 20, right: 30, left: -20, bottom: 20 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke={slate[200]} />
                         <XAxis type="number" tick={{ fill: slate[500], fontSize: 12 }} tickFormatter={(v) => formatNumber(v, 0)} />
-                        <YAxis type="category" dataKey={xAxisDataKey || "name"} width={220} tick={{ fill: slate[600], fontSize: 12, width: 210 }} interval={0} />
+                        <YAxis type="category" dataKey={xAxisDataKey || "name"} width={220} tick={<CustomYAxisTick />} interval={0} />
                         <Tooltip content={<CustomTooltip />} />
                         <Legend wrapperStyle={{ position: 'relative', top: '10px' }}/>
                         <Bar dataKey={dataKey} name="Emissions" radius={[0, 4, 4, 0]} barSize={BAR_HEIGHT}>
@@ -377,18 +421,16 @@ const Dashboard = () => {
     setIsChartModalOpen(true);
   };
   
-  // === PERUBAHAN DI SINI ===
   const handleOpenDeviceChartModal = () => {
     const rankedData = allDeviceDataForModal.map((item, index) => ({ ...item, rank: index + 1 }));
     setModalChartConfig({
         title: `All Device Emissions (${dashboardSelectedYear})`,
         chartData: rankedData,
-        // Diubah menjadi Bar Chart untuk konsistensi dan kemudahan membaca daftar panjang
         chartType: 'bar', 
         dataKey: 'value',
         xAxisDataKey: 'name',
         colors: devicePiePalette,
-        enableTableView: true, // AKTIFKAN TABEL
+        enableTableView: true,
         tableColumns: [
             { header: '#', accessor: 'rank' },
             { header: 'Device Type', accessor: 'name' },
@@ -496,10 +538,11 @@ const Dashboard = () => {
               onZoom={allBuildingsChartData.length > 0 ? handleOpenBuildingChartModal : undefined}
           >
               <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={allBuildingsChartData.slice(0, 10)} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                  {/* === PERUBAHAN DI SINI === */}
+                  <BarChart data={allBuildingsChartData.slice(0, 10)} layout="vertical" margin={{ top: 5, right: 30, left: -30, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={slate[200]} horizontal={false} />
                       <XAxis type="number" tick={{ fill: slate[500], fontSize: 11 }} axisLine={{ stroke: slate[300] }} tickLine={false} tickFormatter={(v) => formatNumber(v,0)} />
-                      <YAxis type="category" dataKey="name" width={140} tick={{ fill: slate[600], fontSize: 11, width: 130 }} interval={0} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="name" width={220} tick={<CustomYAxisTick />} interval={0} axisLine={false} tickLine={false} />
                       <Tooltip content={<CustomTooltip />} cursor={{ fill: slate[100] }}/>
                       <Bar dataKey="value" name="Emissions" radius={[0, 4, 4, 0]} barSize={16}>
                           {allBuildingsChartData.slice(0, 10).map((_, index) => ( <Cell key={`cell-bldg-${index}`} fill={comparisonPalette[index % comparisonPalette.length]} /> ))}
@@ -534,10 +577,11 @@ const Dashboard = () => {
                   <div className="flex items-center justify-center h-full text-slate-500 text-sm">Please select a building to view room data.</div>
               ) : roomChartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={roomChartData.slice(0, 10)} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                      {/* === PERUBAHAN DI SINI === */}
+                      <BarChart data={roomChartData.slice(0, 10)} layout="vertical" margin={{ top: 5, right: 30, left: -30, bottom: 5 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke={slate[200]} horizontal={false} />
                           <XAxis type="number" tick={{ fill: slate[500], fontSize: 11 }} axisLine={{ stroke: slate[300] }} tickLine={false} tickFormatter={(v) => formatNumber(v,0)} />
-                          <YAxis type="category" dataKey="name" width={140} tick={{ fill: slate[600], fontSize: 11, width: 130 }} interval={0} axisLine={false} tickLine={false} />
+                          <YAxis type="category" dataKey="name" width={220} tick={<CustomYAxisTick />} interval={0} axisLine={false} tickLine={false} />
                           <Tooltip content={<CustomTooltip />} cursor={{ fill: slate[100] }}/>
                           <Bar dataKey="value" name="Emissions" radius={[0, 4, 4, 0]} barSize={16}>
                               {roomChartData.slice(0, 10).map((_, index) => ( <Cell key={`cell-room-${index}`} fill={comparisonPalette[index % comparisonPalette.length]} /> ))}
