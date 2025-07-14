@@ -238,14 +238,15 @@ export default function DeviceTablePage() {
                 successMessage = 'Device added successfully.';
                 break;
             case 'UPDATE_DEVICE':
-                url = `${API_BASE_URL}/devices/${(itemToEdit as Device).device_id}`;
+                url = `${API_BASE_URL}/devices`;
                 method = 'PUT';
-                payload = { device_name: formData.deviceName, device_power: parseInt(formData.devicePower), room_id: room!.room_id };
+                payload = { device_id: (itemToEdit as Device).device_id, device_name: formData.deviceName, device_power: parseInt(formData.devicePower), room_id: room!.room_id };
                 successMessage = 'Device updated successfully.';
                 break;
             case 'DELETE_DEVICE':
-                url = `${API_BASE_URL}/devices/${(itemToEdit as Device).device_id}`;
+                url = `${API_BASE_URL}/devices`;
                 method = 'DELETE';
+                payload = { device_id: (itemToEdit as Device).device_id }
                 successMessage = 'Device deleted successfully.';
                 break;
             case 'ADD_USAGE':
