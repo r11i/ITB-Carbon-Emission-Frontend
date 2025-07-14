@@ -1,5 +1,6 @@
 import type { Config } from "tailwindcss";
 import forms from "@tailwindcss/forms";
+import defaultTheme from 'tailwindcss/defaultTheme';
 
 const config: Config = {
   content: [
@@ -14,7 +15,7 @@ const config: Config = {
         foreground: "var(--foreground)",
       },
       fontFamily: {
-        inter: ['Inter', 'sans-serif'],
+        sans: ['var(--font-poppins)', ...defaultTheme.fontFamily.sans],
       },
     },
   },
