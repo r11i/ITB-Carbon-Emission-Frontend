@@ -1,12 +1,20 @@
-// pages/_app.tsx
-import "@/styles/globals.css"; // Pastikan path ini benar
+import "@/styles/globals.css";
 import type { AppProps } from "next/app";
-import { AuthProvider } from '@/contexts/AuthContext'; // Pastikan path ini benar
+import { AuthProvider } from '@/contexts/AuthContext';
+import { Poppins } from 'next/font/google';
+
+const poppins = Poppins({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'], 
+  variable: '--font-poppins',
+});
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
     <AuthProvider>
-      <Component {...pageProps} />
+      <div className={`${poppins.variable} font-sans`}>
+        <Component {...pageProps} />
+      </div>
     </AuthProvider>
   );
 }
