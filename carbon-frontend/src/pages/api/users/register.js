@@ -7,13 +7,14 @@ const supabase = createClient(
 );
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', ['POST']);
-    return res.status(405).end(`Method ${req.method} Not Allowed`);
+  if (req.method !== "POST") {
+    res.setHeader("Allow", ["POST"]);
+    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
   const { username, password } = req.body;
 
+  // Validation
   if (!username || !password) {
     return res.status(400).json({ error: "Username and password are required." });
   }
@@ -23,30 +24,31 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Check if user already exists
-    const { data: existingUsers, error: listError } = await supabase.auth.admin.listUsers({ page: 1, perPage: 100 });
-    if (listError) {
-      console.error("Supabase listUsers error:", listError.message);
-      return res.status(500).json({ error: "Failed to verify user existence." });
+    const { data, error } = await supabase.auth.signUp({
+      email: username,
+      password: password,
+    });
+
+    if (error) {
+      console.error("🔒 Supabase signUp error:", error.message);
+
+      let friendlyError = error.message;
+      if (
+        friendlyError.toLowerCase().includes("user already registered") ||
+        friendlyError.toLowerCase().includes("duplicate")
+      ) {
+        friendlyError = "Email already in use. Please login instead.";
+      }
+
+      return res.status(400).json({ error: friendlyError });
     }
 
-    const userExists = existingUsers?.users.some((u) => u.email === username);
-    if (userExists) {
-      return res.status(400).json({ error: "Email already in use. Please login instead." });
-    }
-
-    // Register new user
-    const { error: signUpError } = await supabase.auth.signUp({ email: username, password });
-
-    if (signUpError) {
-      console.error("Supabase signUp error:", signUpError.message);
-      return res.status(400).json({ error: signUpError.message });
-    }
-
-    res.status(201).json({ message: "Registration successful. Please check your email for verification." });
-
+    return res.status(201).json({
+      message: "✅ Registration successful. Please verify your email.",
+      user: data.user,
+    });
   } catch (err) {
-    console.error("Registration error:", err);
-    res.status(500).json({ error: "An unexpected error occurred during registration." });
+    console.error("❌ Registration server error:", err.message);
+    return res.status(500).json({ error: "Unexpected server error." });
   }
 }

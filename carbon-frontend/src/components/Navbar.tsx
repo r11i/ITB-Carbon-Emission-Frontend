@@ -104,7 +104,7 @@ const Navbar = () => {
                   </button>
                   {isUserDropdownOpen && (
                     <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-40" onMouseLeave={() => setIsUserDropdownOpen(false)}>
-                      {isSuperAdmin && <DropdownItem href="/register">User Management</DropdownItem>}
+                      {isSuperAdmin && <DropdownItem href="/register">User Registration</DropdownItem>}
                       <DropdownItem onClick={logout}>Logout</DropdownItem>
                     </div>
                   )}
@@ -146,7 +146,7 @@ const Navbar = () => {
                 <div className="pt-4 mt-4 border-t border-gray-200">
                   {isAuthenticated ? (
                     <>
-                      {isSuperAdmin && <Link href="/register" legacyBehavior><a onClick={handleMobileLinkClick} className="group flex items-center px-3 py-3 text-base font-medium rounded-md text-gray-900 hover:bg-blue-50 hover:text-blue-600">User Management</a></Link>}
+                      {isSuperAdmin && <Link href="/register" legacyBehavior><a onClick={handleMobileLinkClick} className="group flex items-center px-3 py-3 text-base font-medium rounded-md text-gray-900 hover:bg-blue-50 hover:text-blue-600">User Registration</a></Link>}
                       <button onClick={handleLogout} className="w-full text-left group flex items-center px-3 py-3 text-base font-medium rounded-md text-gray-900 hover:bg-red-50 hover:text-red-600">Logout {user?.email ? `(${user.email.split('@')[0]})` : ''}</button>
                     </>
                   ) : (
