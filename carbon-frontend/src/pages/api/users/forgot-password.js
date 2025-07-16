@@ -20,7 +20,7 @@ export default async function handler(req, res) {
 
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: process.env.PASSWORD_RESET_REDIRECT_URL || 'https://itb-carbon-emission-frontend.vercel.app/reset-password',
+      redirectTo: 'https://itb-carbon-emission-frontend.vercel.app/reset-password',
     });
 
     if (error) {
