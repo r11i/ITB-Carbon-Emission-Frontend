@@ -9,9 +9,9 @@ const supabase = createClient(
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
 
-  const { username: email, password } = req.body;
+  const { username, password } = req.body;
 
-  if (!email || !password) {
+  if (!username || !password) {
     return res.status(400).json({ error: "Email and password are required." });
   }
 
@@ -27,14 +27,14 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Could not check existing users." });
     }
 
-    const userExists = users?.users?.find((u) => u.email === email);
+    const userExists = users?.users?.find((u) => u.email === username);
     if (userExists) {
       return res.status(400).json({ error: "Email already in use. Please login instead." });
     }
 
     // Step 2: Register new user
     const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
+      username,
       password,
     });
 
