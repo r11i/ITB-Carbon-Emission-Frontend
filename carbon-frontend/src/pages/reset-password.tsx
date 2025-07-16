@@ -17,6 +17,8 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [accessToken, setAccessToken] = useState("");
+  const [refreshToken, setRefreshToken] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -26,6 +28,9 @@ export default function ResetPasswordPage() {
     const refreshToken = params.get("refresh_token");
 
     if (accessToken && refreshToken) {
+      setAccessToken(accessToken);
+      setRefreshToken(refreshToken);
+
       supabase.auth
         .setSession({ access_token: accessToken, refresh_token: refreshToken })
         .then(async () => {
@@ -57,17 +62,26 @@ export default function ResetPasswordPage() {
     }
 
     try {
-      const { error } = await supabase.auth.updateUser({ password });
+      const res = await fetch("/api/users/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          password,
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        }),
+      });
 
-      if (error) {
-        setMessage("❌ Failed to update password: " + error.message);
-        return;
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Reset failed");
       }
 
       setMessage("✅ Password updated! Redirecting to login...");
       setTimeout(() => router.push("/login"), 1500);
     } catch (err: any) {
-      setMessage("❌ Unexpected error: " + err.message);
+      setMessage("❌ Failed: " + err.message);
     }
   };
 
