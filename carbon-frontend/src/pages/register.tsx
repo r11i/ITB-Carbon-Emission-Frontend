@@ -64,7 +64,7 @@ export default function AdminUserRegisterPage() {
   return (
     <>
       <Head>
-        <title>User Management | ITB Carbon Emissions Visualization</title>
+        <title>User Registration | ITB Carbon Emissions Visualization</title>
         <meta name="description" content="Admin page for user registration." />
         <link rel="icon" href="/logo-itb.svg" />
       </Head>
@@ -73,7 +73,7 @@ export default function AdminUserRegisterPage() {
         <Navbar />
         <main className="flex-grow flex flex-col items-center pt-10 p-6">
           <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
-            <h2 className="text-2xl font-bold mb-6 text-center text-slate-800">User Management</h2>
+            <h2 className="text-2xl font-bold mb-6 text-center text-slate-800">User Registration</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block mb-1.5 text-sm font-medium text-slate-700">New User's Email</label>

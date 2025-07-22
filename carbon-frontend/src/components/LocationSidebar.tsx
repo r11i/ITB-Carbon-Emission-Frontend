@@ -1,246 +1,404 @@
-// src/components/LocationSidebar.tsx
-
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
-import { useRouter } from "next/router";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  ResponsiveContainer,
-} from "recharts";
-import type { LocationData } from "./MapComponent";
+import React, { useEffect, useState, ReactNode } from "react";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
+import { TooltipProps } from 'recharts/types/component/DefaultTooltipContent';
 
-// --- Tipe Data ---
-// Tipe RoomData dan rooms di BuildingData disimpan jika akan digunakan di masa depan,
-// tetapi komponen yang menampilkannya (RoomList) telah dihapus.
-interface RoomData {
+export interface LocationData {
+  id: string | number;
   name: string;
-  emission: number;
+  lat: number;
+  lng: number;
+  address: string;
+  imageUrl: string;
 }
 export interface BuildingData {
   name: string;
   total_emission: number;
-  unit?: string;
-  rooms?: RoomData[];
+  rooms?: { [roomName: string]: number };
 }
-interface LocationSidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
-  location: LocationData | null;
-  buildings: BuildingData[];
-  isLoading: boolean;
-  error: string | null;
-  selectedYear: string;
-  availableYears: string[];
-  onYearChange: (newYear: string) => void;
-  campusTotalEmission: number | null;
-}
+interface ListItem { name: string; value: number; }
 
-// --- Konstanta & Komponen Helper ---
-const ganeshaCampusInfo = {
-  apiNameKey: "Ganesha",
-  image: "/itb-gane.jpg",
-};
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const PIE_CHART_COLORS = ['#3B82F6', '#6366F1', '#8B5CF6', '#EC4899', '#F97316', '#F59E0B', '#10B981', '#64748B'];
 
-const ChartSkeleton: React.FC = () => (
-  <div className="w-full h-[300px] bg-gray-200 rounded-lg animate-pulse p-4 space-y-4">
-    <div className="h-6 bg-gray-300 rounded w-3/4"></div>
-    <div className="h-4 bg-gray-300 rounded w-full"></div>
-    <div className="h-4 bg-gray-300 rounded w-5/6"></div>
-    <div className="h-40 bg-gray-300 rounded"></div>
-    <div className="flex justify-between">
-        <div className="h-4 bg-gray-300 rounded w-1/4"></div>
-        <div className="h-4 bg-gray-300 rounded w-1/4"></div>
+const formatNumber = (num: number | null | undefined, dec = 2): string => {
+  if (num === null || num === undefined || isNaN(num)) return "-";
+  return num.toLocaleString('id-ID', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+};
+
+const formatYAxis = (tickItem: number) => {
+    if (tickItem >= 1000000) return `${(tickItem / 1000000).toFixed(1)}M`;
+    if (tickItem >= 1000) return `${(tickItem / 1000).toFixed(0)}k`;
+    return tickItem.toString();
+};
+
+const monthLabels: { [key: number]: string } = {
+    1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr", 5: "May", 6: "Jun",
+    7: "Jul", 8: "Aug", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec"
+};
+
+const Skeleton: React.FC<{ className?: string }> = ({ className }) => <div className={`bg-slate-200 rounded animate-pulse ${className}`}></div>;
+
+const ComparisonPill: React.FC<{ change: number | null }> = ({ change }) => {
+    if (change === null || !isFinite(change) || change === 0) return null;
+    const isNegative = change < 0;
+    return (
+        <span className={`text-xs font-bold ml-2 px-2 py-0.5 rounded-full flex-shrink-0 ${isNegative ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+            {isNegative ? '▼' : '▲'} {Math.abs(change).toFixed(1)}%
+        </span>
+    );
+};
+
+const StatCard: React.FC<{ title: string; value: string; isLoading: boolean; subtitle?: string; children?: ReactNode; variant?: 'default' | 'primary' }> = 
+({ title, value, isLoading, subtitle, children, variant = 'default' }) => {
+    const baseClasses = "p-3 rounded-md border min-w-0";
+    const variantClasses = variant === 'primary' 
+        ? "bg-blue-50 border-blue-200/90" 
+        : "bg-white border-slate-200/90";
+    
+    const titleColor = variant === 'primary' ? 'text-blue-700' : 'text-slate-500';
+    const valueColor = variant === 'primary' ? 'text-blue-900' : 'text-slate-800';
+
+    return (
+        <div className={`${baseClasses} ${variantClasses}`}>
+            <p className={`text-xs font-medium uppercase ${titleColor}`}>{title}</p>
+            <div className={`text-xl font-bold mt-1 flex items-center ${valueColor}`}>
+                {isLoading ? <Skeleton className="h-7 w-3/4" /> : (
+                    <>
+                        <span className="truncate">{value}</span>
+                        {children}
+                    </>
+                )}
+            </div>
+            {subtitle && !isLoading && <p className="text-xs text-slate-400 mt-1">{subtitle}</p>}
+        </div>
+    );
+};
+
+const ExpandableDataTable: React.FC<{ title: string; items: ListItem[]; headers: [string, string, string]; isLoading: boolean; defaultVisible?: number; children?: ReactNode }> = 
+({ title, items, headers, isLoading, defaultVisible = 5, children }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const visibleItems = isExpanded ? items : items.slice(0, defaultVisible);
+
+    return (
+        <div>
+            <h3 className="text-sm font-semibold text-slate-600 mb-2">{title}</h3>
+            {children}
+            {isLoading ? <div className="space-y-2 mt-2"><Skeleton className="h-10 w-full"/><Skeleton className="h-10 w-full"/><Skeleton className="h-10 w-full"/></div> : items.length > 0 ? (
+                <>
+                    <div className="bg-white border border-slate-200/60 rounded-md overflow-hidden">
+                        <table className="w-full text-sm table-fixed">
+                            <thead className="bg-slate-50">
+                                <tr>
+                                    <th className="p-2.5 text-left text-xs font-semibold text-slate-500 uppercase w-10">{headers[0]}</th>
+                                    <th className="p-2.5 text-left text-xs font-semibold text-slate-500 uppercase">{headers[1]}</th>
+                                    <th className="p-2.5 text-right text-xs font-semibold text-slate-500 uppercase w-32">{headers[2]}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {visibleItems.map((item, index) => (
+                                    <tr key={item.name} className="border-t border-slate-200/80">
+                                        <td className="p-2.5 text-center text-slate-500">{index + 1}</td>
+                                        <td className="p-2.5 text-slate-700 truncate" title={item.name}>{item.name}</td>
+                                        <td className="p-2.5 text-right font-medium text-slate-800 whitespace-nowrap">{formatNumber(item.value, 2)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    {items.length > defaultVisible && (
+                        <button onClick={() => setIsExpanded(!isExpanded)} className="text-xs font-semibold text-blue-600 hover:text-blue-800 mt-2">
+                            {isExpanded ? 'View Less' : `View More (${items.length - defaultVisible} more)`}
+                        </button>
+                    )}
+                </>
+            ) : <p className="text-xs text-center text-slate-500 py-3 bg-white border border-slate-200/60 rounded-md">No data available.</p>}
+        </div>
+    );
+};
+
+const MiniTrendChart: React.FC<{ data: any[] }> = ({ data }) => (
+    <div className="h-48 w-full bg-white p-2 rounded-md border border-slate-200/90">
+        <ResponsiveContainer>
+            <LineChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748B' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                <YAxis tick={{ fontSize: 10, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={formatYAxis} />
+                <Tooltip 
+                    contentStyle={{ fontSize: '12px', borderRadius: '0.5rem', padding: '8px' }}
+                    formatter={(value: number) => [`${formatNumber(value, 2)} kg CO₂e`, "Emissions"]}
+                />
+                <Line type="monotone" dataKey="total" name="Emissions" stroke="#3B82F6" strokeWidth={2.5} dot={false} activeDot={{ r: 5, strokeWidth: 2 }} />
+            </LineChart>
+        </ResponsiveContainer>
     </div>
-  </div>
 );
 
-const formatNumber = (num: number | undefined | null, decimals = 1): string => {
-  if (num === undefined || num === null || isNaN(num)) return "N/A";
-  return num.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+const renderCustomizedPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
+    if (percent < 0.05) return null;
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    return (
+        <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="text-[10px] font-bold">
+            {`${(percent * 100).toFixed(0)}%`}
+        </text>
+    );
 };
 
-// Komponen RoomList dan logika terkait bangunan telah dihapus.
-
-const LocationSidebar: React.FC<LocationSidebarProps> = ({
-  isOpen, onClose, location, buildings = [], isLoading: isLoadingParent, error: errorParent, selectedYear, availableYears = ["All"], onYearChange, campusTotalEmission,
-}) => {
-  const router = useRouter();
-  const [trendChartData, setTrendChartData] = useState<Array<{ year: string; emissions: number }>>([]);
-  const [isLoadingChart, setIsLoadingChart] = useState(true);
-  const [errorChart, setErrorChart] = useState<string | null>(null);
-  // State `expandedBuildingName` telah dihapus
-
-  useEffect(() => {
-    if (isOpen && location && location.name.toLowerCase().includes("ganesha")) {
-      const fetchEmissionTrendData = async () => {
-        setIsLoadingChart(true);
-        setErrorChart(null);
-        try {
-          const apiUrl = `${API_BASE_URL}/emissions/campus?campus=${ganeshaCampusInfo.apiNameKey}&year=All`;
-          const response = await fetch(apiUrl);
-          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-          const data = await response.json();
-          const campusEmissions = data.emissions?.[ganeshaCampusInfo.apiNameKey];
-
-          if (campusEmissions && typeof campusEmissions === 'object') {
-            const formattedData = Object.keys(campusEmissions)
-              .map(year => ({ year: year, emissions: campusEmissions[year] as number }))
-              .filter(d => !isNaN(parseInt(d.year)))
-              .sort((a, b) => parseInt(a.year) - parseInt(b.year));
-            setTrendChartData(formattedData);
-          } else {
-            setTrendChartData([]);
-          }
-        } catch (e: any) {
-          setErrorChart(e.message || "Failed to load trend data.");
-          setTrendChartData([]);
-        } finally {
-          setIsLoadingChart(false);
-        }
-      };
-      fetchEmissionTrendData();
-    } else if (!isOpen || !location) {
-        setTrendChartData([]);
-        setIsLoadingChart(false);
-        setErrorChart(null);
+const DevicePieChart: React.FC<{ title: string, items: ListItem[], isLoading: boolean }> = ({ title, items, isLoading }) => {
+    const TOP_N_DEVICES = 7;
+    const chartData = [...items];
+    let othersValue = 0;
+    if (chartData.length > TOP_N_DEVICES) {
+        othersValue = chartData.slice(TOP_N_DEVICES).reduce((sum, item) => sum + item.value, 0);
+        chartData.splice(TOP_N_DEVICES);
+        if(othersValue > 0) chartData.push({ name: 'Lainnya', value: othersValue });
     }
-  }, [isOpen, location]);
 
-  if (!location) return null;
-
-  const imagePlaceholderUrl = ganeshaCampusInfo.image;
-
-  // `sortedBuildings` dan `handleBuildingClick` telah dihapus
-  
-  const handleNavigateToDashboard = () => {
-    onClose();
-    setTimeout(() => {
-      router.push('/carbon-dashboard');
-    }, 300);
-  };
-
-  return (
-    <>
-      {/* Backdrop (di bawah sidebar dan navbar) */}
-      <div
-        className={`fixed inset-0 bg-black/30 backdrop-blur-sm z-30 transition-opacity duration-300 ease-in-out md:hidden ${
-          isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        }`}
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      {/* Kontainer Sidebar (di bawah navbar) */}
-      <div
-        className={`fixed top-16 left-0 h-[calc(100%-4rem)] w-[90vw] max-w-lg bg-white shadow-xl z-40 transform transition-transform duration-300 ease-in-out flex flex-col ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div className="p-4 bg-blue-100 border-b border-blue-200">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-xl font-bold text-blue-900">{location.name}</h2>
-              <p className="text-xs text-blue-700/80 mt-1">
-                {selectedYear === "All" ? "All time data" : `Data for ${selectedYear}`}
-              </p>
+    const CustomPieTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+        if (!active || !payload || !payload.length) return null;
+        return (
+            <div className="bg-white/90 p-2 rounded-lg shadow-md border border-slate-200 text-xs backdrop-blur-sm">
+                <p className="font-semibold text-slate-700 mb-1">{payload[0].name}</p>
+                <p className="text-slate-600">Emissions: <span className="font-bold text-slate-800">{formatNumber(payload[0].value as number, 2)} kg CO₂e</span></p>
             </div>
-            <button onClick={onClose} className="p-1 rounded-full text-blue-600 hover:bg-blue-200/70 transition-colors">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-          </div>
-        </div>
+        );
+    };
 
-        {/* Gambar Kampus */}
-        <div className="relative w-full aspect-video overflow-hidden">
-          <img src={imagePlaceholderUrl} onError={(e) => (e.currentTarget.src = '/images/itb-placeholder.jpg')} alt={`${location.name} campus`} className="w-full h-full object-cover"/>
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-          <div className="absolute bottom-0 left-0 p-4"><p className="text-sm text-white">{location.address}</p></div>
+    return (
+        <div>
+            <h3 className="text-sm font-semibold text-slate-600 mb-2">{title}</h3>
+            {isLoading ? <Skeleton className="h-64 w-full rounded-md"/> : items.length > 0 ? (
+                <div className="h-64 w-full bg-white p-2 rounded-md border border-slate-200/90">
+                    <ResponsiveContainer>
+                        <PieChart>
+                            <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="80%" labelLine={false} label={renderCustomizedPieLabel} >
+                                {chartData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]} />
+                                ))}
+                            </Pie>
+                            <Tooltip content={<CustomPieTooltip />} />
+                            <Legend iconSize={8} wrapperStyle={{fontSize: "11px", lineHeight: "1.2"}}/>
+                        </PieChart>
+                    </ResponsiveContainer>
+                </div>
+            ) : <p className="text-xs text-center text-slate-500 py-3 bg-white border border-slate-200/60 rounded-md">No data available.</p>}
         </div>
-
-        {/* Konten Utama (Scrollable) */}
-        <div className="flex-1 overflow-y-auto pb-20">
-          <div className="p-4 grid grid-cols-2 gap-3">
-            <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
-              <p className="text-xs font-medium text-gray-500 uppercase">Total Emissions</p>
-              {isLoadingParent ? <div className="h-8 mt-1 bg-gray-200 rounded animate-pulse" /> : errorParent ? <p className="text-red-500 text-sm mt-1">Error</p> : (
-                <p className="text-2xl font-bold text-gray-900 mt-1 whitespace-nowrap">
-                  {formatNumber(campusTotalEmission)} <span className="text-sm text-gray-500">kg CO₂e</span>
-                </p>
-              )}
-            </div>
-            <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
-              <p className="text-xs font-medium text-gray-500 uppercase">Buildings Tracked</p>
-              {isLoadingParent ? <div className="h-8 mt-1 bg-gray-200 rounded animate-pulse" /> : errorParent ? <p className="text-red-500 text-sm mt-1">Error</p> : (
-                <p className="text-2xl font-bold text-gray-900 mt-1">{buildings.length}</p>
-              )}
-            </div>
-          </div>
-          <div className="px-4 mb-4">
-            <select value={selectedYear} onChange={(e) => onYearChange(e.target.value)} disabled={isLoadingParent || availableYears.length <= 1} className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-              {availableYears.map((year) => (<option key={year} value={year}>{year === "All" ? "All Years" : year}</option>))}
-            </select>
-          </div>
-          
-          {/* --- Navigasi Tab Telah Dihapus --- */}
-
-          <div className="p-4 border-t border-gray-200 mt-2">
-            {/* --- Konten sekarang hanya menampilkan bagian Summary --- */}
-            <h3 className="text-lg font-semibold text-gray-900">About This Campus</h3>
-            <p className="text-sm text-gray-600 mt-2">
-              Detailed carbon emissions data for {location.name}.
-              {buildings.length > 0 ? ` The campus has ${buildings.length} buildings with tracked energy consumption contributing to the total carbon footprint.` : " Emission data by building is not yet available for the selected period."}
-            </p>
-            <h3 className="text-lg font-semibold text-gray-900 mt-6">Emission Trends</h3>
-            <p className="text-sm text-gray-600 mt-2">
-              Annual emission trends for {location.name}.
-            </p>
-            <div className="mt-6">
-              {isLoadingChart ? ( <ChartSkeleton />
-              ) : errorChart ? ( <p className="text-center text-red-500 py-4">Error loading trends: {errorChart}</p>
-              ) : trendChartData.length === 0 ? ( <p className="text-center text-gray-500 py-4">No annual emission trend data available.</p>
-              ) : (
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={trendChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                    <XAxis dataKey="year" stroke="#6b7280" tick={{ fontSize: 12 }} />
-                    <YAxis stroke="#6b7280" tick={{ fontSize: 12 }} tickFormatter={(value) => formatNumber(value, 0)} />
-                    <Tooltip
-                      formatter={(value: number) => [`${formatNumber(value,0)} kg CO₂e`, "Emissions"]}
-                      labelStyle={{ fontWeight: 'bold', color: '#374151' }} itemStyle={{ color: '#1e40af' }}
-                      contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', border: '1px solid #e5e7eb', borderRadius: '0.375rem', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)' }}
-                      cursor={{ stroke: '#d1d5db', strokeWidth: 1 }}
-                    />
-                    <Line type="monotone" dataKey="emissions" name="Emissions" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 4, fill: "#2563eb", strokeWidth: 1, stroke: "#fff" }} activeDot={{ r: 6, stroke: "#1d4ed8", strokeWidth: 2, fill: "#fff" }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-            {/* --- Seluruh bagian untuk menampilkan daftar bangunan telah dihapus --- */}
-          </div>
-        </div>
-
-        {/* Tombol Navigasi Bawah */}
-        <div className="absolute bottom-0 left-0 w-full p-4 bg-white/80 backdrop-blur-sm border-t border-gray-200">
-            <button
-                onClick={handleNavigateToDashboard}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
-            >
-                View Full Dashboard
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                </svg>
-            </button>
-        </div>
-      </div>
-    </>
-  );
+    );
 };
 
-export default LocationSidebar;
+const DashboardView: React.FC<{ selectedYear: string }> = ({ selectedYear }) => {
+    const [isLoading, setIsLoading] = useState(true);
+    const [data, setData] = useState<{ total: number | null; prevTotal: number | null; trend: any[]; devices: ListItem[]; campuses: ListItem[] }>({ total: null, prevTotal: null, trend: [], devices: [], campuses: [] });
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setIsLoading(true);
+            const prevYear = selectedYear !== 'All' ? String(Number(selectedYear) - 1) : 'All';
+            try {
+                const [campusRes, devRes, trendRes, campusPrevRes] = await Promise.all([
+                    fetch(`${API_BASE_URL}/emissions/campus?year=${selectedYear}&aggregate=total`).then(res => res.json()),
+                    fetch(`${API_BASE_URL}/emissions/device?year=${selectedYear}`).then(res => res.json()),
+                    fetch(`${API_BASE_URL}/emissions/campus?year=${selectedYear}&aggregate=${selectedYear === 'All' ? 'yearly' : 'monthly'}_total`).then(res => res.json()),
+                    fetch(`${API_BASE_URL}/emissions/campus?year=${prevYear}&aggregate=total`).then(res => res.json())
+                ]);
+
+                const campusList = Object.entries(campusRes.total_emissions as {[k:string]:number}).map(([name, value]) => ({ name: `${name} Campus`, value })).sort((a, b) => b.value - a.value);
+                const devList = devRes.device_emissions ? Object.entries(devRes.device_emissions as {[k:string]:number}).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value) : [];
+                const total = campusList.reduce((s, i) => s + i.value, 0);
+                const prevTotal = Object.values(campusPrevRes.total_emissions as {[k:string]:number}).reduce((s, v) => s + v, 0);
+
+                const aggTrend: { [k: string]: number } = {};
+                Object.values(trendRes.emissions as {[k:string]:{[k:string]:number}}).forEach(d => Object.entries(d).forEach(([t,v]) => { aggTrend[t] = (aggTrend[t] || 0) + v; }));
+                const isAllYears = selectedYear === 'All';
+                const trendData = Object.entries(aggTrend).map(([time, total]) => ({ name: isAllYears ? time : monthLabels[parseInt(time)] || time, total })).sort((a,b) => {
+                    const timeA = isAllYears ? parseInt(a.name) : Object.keys(monthLabels).find(key => monthLabels[parseInt(key)] === a.name) || 0;
+                    const timeB = isAllYears ? parseInt(b.name) : Object.keys(monthLabels).find(key => monthLabels[parseInt(key)] === b.name) || 0;
+                    return Number(timeA) - Number(timeB);
+                });
+                
+                setData({ total, prevTotal, trend: trendData, devices: devList, campuses: campusList });
+            } catch (err) { console.error(err); } 
+            finally { setIsLoading(false); }
+        };
+        fetchData();
+    }, [selectedYear]);
+
+    const percentageChange = (data.total && data.prevTotal) ? ((data.total - data.prevTotal) / data.prevTotal) * 100 : null;
+    const comparisonSubtitle = selectedYear !== 'All' ? `vs ${Number(selectedYear) - 1}` : 'vs Previous Period';
+    
+    return (
+        <div className="p-4 space-y-5">
+            <StatCard 
+                title="Total Emissions" 
+                value={`${formatNumber(data.total, 2)} kg CO₂e`} 
+                isLoading={isLoading}
+                subtitle={comparisonSubtitle}
+                variant="primary"
+            >
+                <ComparisonPill change={percentageChange} />
+            </StatCard>
+             <div>
+                <h3 className="text-sm font-semibold text-slate-600 mb-2">Emissions Trend</h3>
+                {isLoading ? <Skeleton className="h-52 w-full"/> : <MiniTrendChart data={data.trend} />}
+            </div>
+            <ExpandableDataTable title="Emissions by Campus" items={data.campuses} headers={['#', 'Campus', 'Emissions (kg CO₂e)']} isLoading={isLoading} defaultVisible={4} />
+            <DevicePieChart title="Emissions by Device Type" items={data.devices} isLoading={isLoading} />
+        </div>
+    );
+};
+
+const CampusView: React.FC<Omit<LocationSidebarProps, 'isOpen' | 'onReturnToOverview'>> = (props) => {
+    const { buildings, isLoading, campusTotalEmission, campusTotalEmissionPrevYear, location, selectedYear } = props;
+    const [rooms, setRooms] = useState<ListItem[]>([]);
+    const [selectedBuilding, setSelectedBuilding] = useState<string>("");
+    const [deviceData, setDeviceData] = useState<ListItem[]>([]);
+    const [isDeviceLoading, setIsDeviceLoading] = useState(true);
+    const [trendData, setTrendData] = useState<any[]>([]);
+    const [isTrendLoading, setIsTrendLoading] = useState(true);
+
+    useEffect(() => { 
+        setSelectedBuilding(""); 
+        setRooms([]); 
+    }, [location]);
+    
+    useEffect(() => {
+        if (!location || location.id === 'All') return;
+        
+        const fetchDeviceData = async () => {
+            setIsDeviceLoading(true);
+            try {
+                const res = await fetch(`${API_BASE_URL}/emissions/device?campus=${location.id}&year=${selectedYear}`).then(r => r.json());
+                const devList = res.device_emissions ? Object.entries(res.device_emissions as {[k:string]:number}).map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value) : [];
+                setDeviceData(devList);
+            } catch (err) { console.error("Failed to fetch device data for campus:", err); setDeviceData([]); } 
+            finally { setIsDeviceLoading(false); }
+        };
+
+        const fetchTrendData = async () => {
+            setIsTrendLoading(true);
+            const isAllYears = selectedYear === 'All';
+            const aggregate = isAllYears ? 'yearly_total' : 'monthly_total';
+            try {
+                const res = await fetch(`${API_BASE_URL}/emissions/campus?campus=${location.id}&year=${selectedYear}&aggregate=${aggregate}`).then(r => r.json());
+                const campusTrendData = res.emissions?.[location.id as string] || {};
+                const formattedTrend = Object.entries(campusTrendData).map(([time, total]) => ({
+                    name: isAllYears ? time : monthLabels[parseInt(time)] || time,
+                    total
+                })).sort((a,b) => {
+                    const timeA = isAllYears ? parseInt(a.name) : Object.keys(monthLabels).find(key => monthLabels[parseInt(key)] === a.name) || 0;
+                    const timeB = isAllYears ? parseInt(b.name) : Object.keys(monthLabels).find(key => monthLabels[parseInt(key)] === b.name) || 0;
+                    return Number(timeA) - Number(timeB);
+                });
+                setTrendData(formattedTrend);
+            } catch (err) { console.error("Failed to fetch trend data for campus:", err); setTrendData([]); }
+            finally { setIsTrendLoading(false); }
+        };
+
+        fetchDeviceData();
+        fetchTrendData();
+
+    }, [location, selectedYear]);
+
+    useEffect(() => {
+        if (!selectedBuilding) { setRooms([]); return; }
+        const building = buildings.find(b => b.name === selectedBuilding);
+        if (building && building.rooms) {
+            const roomList = Object.entries(building.rooms).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+            setRooms(roomList);
+        } else {
+            setRooms([]);
+        }
+    }, [selectedBuilding, buildings]);
+    
+    const percentageChange = (campusTotalEmission && campusTotalEmissionPrevYear) ? ((campusTotalEmission - campusTotalEmissionPrevYear) / campusTotalEmissionPrevYear) * 100 : null;
+    const comparisonSubtitle = selectedYear !== 'All' ? `vs ${Number(selectedYear) - 1}` : 'vs Previous Period';
+
+    return (
+        <div className="p-4 space-y-5">
+            <div className="space-y-3">
+                <StatCard 
+                    title="Total Emissions" 
+                    value={`${formatNumber(campusTotalEmission, 2)} kg CO₂e`} 
+                    isLoading={isLoading}
+                    subtitle={comparisonSubtitle}
+                    variant="primary"
+                >
+                    <ComparisonPill change={percentageChange} />
+                </StatCard>
+                <StatCard title="Buildings Tracked" value={isLoading ? "-" : String(buildings.length)} isLoading={isLoading} />
+            </div>
+            
+            <div>
+                <h3 className="text-sm font-semibold text-slate-600 mb-2">Emissions Trend</h3>
+                {isTrendLoading ? <Skeleton className="h-52 w-full"/> : <MiniTrendChart data={trendData} />}
+            </div>
+            
+            <ExpandableDataTable
+                title="Top Emitting Buildings"
+                items={buildings.map(b => ({ name: b.name, value: b.total_emission }))}
+                headers={['#', 'Building', 'Emissions (kg CO₂e)']}
+                isLoading={isLoading}
+            />
+            <ExpandableDataTable
+                title="Top Emitting Rooms"
+                items={rooms}
+                headers={['#', 'Room', 'Emissions (kg CO₂e)']}
+                isLoading={false}
+            >
+                <select value={selectedBuilding} onChange={e => setSelectedBuilding(e.target.value)} disabled={isLoading || buildings.length === 0} className="w-full text-sm p-2 mb-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+                    <option value="">-- Select Building --</option>
+                    {buildings.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
+                </select>
+            </ExpandableDataTable>
+            <DevicePieChart title="Emissions by Device Type" items={deviceData} isLoading={isDeviceLoading} />
+        </div>
+    );
+};
+
+interface LocationSidebarProps {
+    isOpen: boolean;
+    onReturnToOverview: () => void;
+    location: LocationData | null;
+    buildings: BuildingData[];
+    isLoading: boolean;
+    error: string | null;
+    selectedYear: string;
+    availableYears: string[];
+    onYearChange: (newYear: string) => void;
+    campusTotalEmission: number | null;
+    campusTotalEmissionPrevYear: number | null;
+}
+
+export default function LocationSidebar(props: LocationSidebarProps) {
+    const { isOpen, onReturnToOverview, location, selectedYear, onYearChange, availableYears } = props;
+    if (!isOpen || !location) return null;
+    const isDashboardView = location.id === 'All';
+
+    return (
+        <div className="absolute top-0 left-0 h-full w-[90vw] max-w-md bg-slate-100 z-20 flex flex-col shadow-lg">
+            <div className="p-4 bg-white border-b border-slate-200 flex-shrink-0">
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                        {!isDashboardView && (
+                            <button onClick={onReturnToOverview} className="p-1 text-slate-500 hover:text-slate-800 rounded-full hover:bg-slate-100" title="Back to Overview">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                            </button>
+                        )}
+                        <h2 className="text-lg font-bold text-slate-800">{location.name}</h2>
+                    </div>
+                </div>
+                <p className="text-xs text-slate-500 mt-1 ml-1">{selectedYear === "All" ? "All time data" : `Data for ${selectedYear}`}</p>
+                <select value={selectedYear} onChange={(e) => onYearChange(e.target.value)} className="w-full text-sm mt-3 p-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+                    {availableYears.map(year => (<option key={year} value={year}>{year === "All" ? "All Time" : year}</option>))}
+                </select>
+            </div>
+            <div className="flex-1 overflow-y-auto min-h-0">
+                {isDashboardView ? <DashboardView {...props} /> : <CampusView {...props} />}
+            </div>
+        </div>
+    );
+}
