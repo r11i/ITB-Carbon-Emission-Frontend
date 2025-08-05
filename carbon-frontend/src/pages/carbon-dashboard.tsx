@@ -217,7 +217,13 @@ const Dashboard = () => {
       }
   }, [selectedBuilding, allBuildingsData]);
 
-  const averageMonthlyEmission = selectedYear !== 'All' && totalEmissions ? totalEmissions / 12 : null;
+  const averageMonthlyEmission = (() => {
+    if (totalEmissions === null) return null;
+    if (selectedYear !== 'All') return totalEmissions / 12;
+    const numYears = availableYears.filter(y => y !== 'All').length;
+    if (numYears > 0) return totalEmissions / (numYears * 12);
+    return null;
+  })();
 
   return (
     <>
@@ -243,7 +249,7 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
             <DashboardCard title={`Total Emissions (${selectedCampus}, ${selectedYear})`} value={totalEmissions ?? '-'} unit="kg CO₂e" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg>} isLoading={isLoading} />
             <DashboardCard title={`Top Emitter (${selectedCampus})`} value={topEmitterName ?? 'N/A'} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H5a1 1 0 110-2V4zm3 1h2v1H7V5zm0 2h2v1H7V7zm0 2h2v1H7V9zm0 2h2v1H7v-1zm4-6h2v1h-2V5zm0 2h2v1h-2V7zm0 2h2v1h-2V9zm0 2h2v1h-2v-1z" clipRule="evenodd" /></svg>} isLoading={isLoading} />
-            <DashboardCard title={`Avg. Monthly (${selectedYear})`} value={averageMonthlyEmission ?? '-'} unit="kg CO₂e" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>} isLoading={isLoading || selectedYear === 'All'} />
+            <DashboardCard title={`Avg. Monthly`} value={averageMonthlyEmission ?? '-'} unit="kg CO₂e" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>} isLoading={isLoading} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
