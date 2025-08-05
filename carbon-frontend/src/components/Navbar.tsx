@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect, Fragment } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation"; 
 import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 
-// Urutan dan link navItems telah diubah sesuai permintaan
 const navItems = [
   { name: "Dashboard", href: "/" },
   { name: "Device Management", href: "/device-table", auth: true },
@@ -20,6 +19,7 @@ interface DropdownItemProps {
   onClick?: () => void;
   children: React.ReactNode;
 }
+
 const DropdownItem: React.FC<DropdownItemProps> = ({ href, onClick, children }) => {
   const classNames = "block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors";
   if (href) {
@@ -46,6 +46,16 @@ const Navbar = () => {
     setIsMobileNavOpen(false);
   };
 
+  // Helper function untuk menentukan apakah sebuah link aktif
+  const isLinkActive = (itemHref: string) => {
+    // Kondisi khusus untuk Dashboard
+    if (itemHref === '/') {
+      return pathname === '/' || pathname === '/carbon-dashboard';
+    }
+    // Kondisi default untuk link lainnya
+    return pathname === itemHref;
+  };
+
   return (
     <>
       <nav className="bg-white/80 backdrop-blur-md shadow-sm z-50 sticky top-0 h-16 border-b border-slate-200/80">
@@ -65,13 +75,16 @@ const Navbar = () => {
             </div>
 
             <div className="hidden md:flex md:items-center md:space-x-2">
-              {navItems.map((item) => (
-                (item.auth && !isAuthenticated) ? null : (
+              {navItems.map((item) => {
+                if (item.auth && !isAuthenticated) return null;
+                const isActive = isLinkActive(item.href);
+
+                return (
                   <Link href={item.href} key={item.name} legacyBehavior>
                     <a className={`relative px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                        pathname === item.href ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'
+                        isActive ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'
                     }`}>
-                      {pathname === item.href && (
+                      {isActive && (
                         <motion.div
                           layoutId="active-pill"
                           className="absolute inset-0 bg-blue-100 rounded-md z-0"
@@ -82,7 +95,7 @@ const Navbar = () => {
                     </a>
                   </Link>
                 )
-              ))}
+              })}
             </div>
 
             <div className="hidden md:flex md:items-center md:space-x-4">
@@ -132,15 +145,17 @@ const Navbar = () => {
                   <span className="ml-3 text-xl font-bold text-gray-900">ITB Carbon</span>
               </div>
               <nav className="mt-6 px-2 space-y-1">
-                {navItems.map(item => (
-                  (item.auth && !isAuthenticated) ? null : (
+                {navItems.map(item => {
+                  if (item.auth && !isAuthenticated) return null;
+                  const isActive = isLinkActive(item.href);
+                  return (
                     <Link href={item.href} key={item.name} legacyBehavior>
                         <a onClick={handleMobileLinkClick} className={`group flex items-center px-3 py-3 text-base font-medium rounded-md ${
-                            pathname === item.href ? 'text-blue-600 bg-blue-100' : 'text-gray-900 hover:bg-blue-50 hover:text-blue-600'
+                            isActive ? 'text-blue-600 bg-blue-100' : 'text-gray-900 hover:bg-blue-50 hover:text-blue-600'
                         }`}>{item.name}</a>
                     </Link>
                   )
-                ))}
+                })}
                 <div className="pt-4 mt-4 border-t border-gray-200">
                   {isAuthenticated ? (
                     <>

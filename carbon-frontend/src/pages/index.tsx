@@ -27,27 +27,24 @@ const MapComponent = dynamic(() => import("@/components/MapComponent"), {
 });
 const LocationSidebar = dynamic(() => import("@/components/LocationSidebar"), { ssr: false });
 
-interface BuildingJsonResponse { buildings: { [buildingName: string]: { total_emission: number; rooms?: {} } }; }
-interface CampusEmissionsResponse { total_emissions: { [campus: string]: number; }; emissions: { [campus: string]: { [year: string]: number; }; }; }
+interface BuildingJsonResponse {
+    buildings: { [buildingName: string]: { total_emission: number; rooms?: {} } };
+}
+interface CampusEmissionsResponse {
+    total_emissions: { [campus: string]: number; };
+    emissions: { [campus: string]: { [year: string]: number; }; };
+}
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 const ALL_CAMPUS_LOCATIONS: LocationData[] = [
-    { id: "Ganesha", name: "ITB Ganesha Campus", lat: -6.89018, lng: 107.61017, address: "Jl. Ganesa No.10, Lb. Siliwangi, Kecamatan Coblong, Kota Bandung", imageUrl: "/itb-gane.jpg" },
-    { id: "Jatinangor", name: "ITB Jatinangor Campus", lat: -6.92780, lng: 107.76906, address: "Jl. Letjen Purn.Dr.(HC). Mashudi No.1, Sayang, Kec. Jatinangor, Kabupaten Sumedang", imageUrl: "/itb-jatinangor.jpg" },
-    { id: "Cirebon", name: "ITB Cirebon Campus", lat: -6.66397, lng: 108.41587, address: "Jl. Kebonturi, Arjawinangun, Kec. Arjawinangun, Kabupaten Cirebon", imageUrl: "/itb-cirebon.jpg" },
-    { id: "Jakarta", name: "ITB Jakarta Campus", lat: -6.234175, lng: 106.831673, address: "Graha Irama (Indorama), Jl. H. R. Rasuna Said No.Kav. 1-2, Kuningan Tim., Kecamatan Setiabudi, Kota Jakarta Selatan", imageUrl: "/itb-jakarta.jpg" },
+    { id: "Ganesha", name: "ITB Ganesha Campus", lat: -6.89018, lng: 107.61017, address: "Jl. Ganesa No.10", imageUrl: "/itb-gane.jpg" },
+    { id: "Jatinangor", name: "ITB Jatinangor Campus", lat: -6.92780, lng: 107.76906, address: "Jl. Letjen Purn.Dr.(HC). Mashudi No.1", imageUrl: "/itb-jatinangor.jpg" },
+    { id: "Cirebon", name: "ITB Cirebon Campus", lat: -6.66397, lng: 108.41587, address: "Jl. Kebonturi, Arjawinangun", imageUrl: "/itb-cirebon.jpg" },
+    { id: "Jakarta", name: "ITB Jakarta Campus", lat: -6.234175, lng: 106.831673, address: "Graha Irama (Indorama)", imageUrl: "/itb-jakarta.jpg" },
 ];
 
-const OVERVIEW_LOCATION: LocationData = {
-  id: "All",
-  name: "All ITB Campuses",
-  lat: -6.7,
-  lng: 107.6,
-  address: "Dashboard view for all campuses",
-  imageUrl: "/images/itb-placeholder.jpg"
-};
-
+const OVERVIEW_LOCATION: LocationData = { id: "All", name: "All ITB Campuses", lat: -6.7, lng: 107.6, address: "Dashboard view for all campuses", imageUrl: "/images/itb-placeholder.jpg" };
 const OVERVIEW_MAP_VIEW = { center: [-6.78, 107.8] as [number, number], zoom: 9 };
 const FOCUSED_MAP_VIEW_ZOOM = 16;
 
@@ -61,7 +58,6 @@ export default function HomePage() {
   const [selectedYear, setSelectedYear] = useState<string>("All");
   const [availableYears, setAvailableYears] = useState<string[]>(["All"]);
   const [mapView, setMapView] = useState(OVERVIEW_MAP_VIEW);
-
   const [campusTotalEmission, setCampusTotalEmission] = useState<number | null>(null);
   const [campusTotalEmissionPrevYear, setCampusTotalEmissionPrevYear] = useState<number | null>(null);
 
@@ -76,52 +72,55 @@ export default function HomePage() {
     setMapView(OVERVIEW_MAP_VIEW);
   }, []);
 
-  const handleYearChange = useCallback((newYear: string) => setSelectedYear(newYear), []);
+  const handleYearChange = useCallback((newYear: string) => {
+    setSelectedYear(newYear);
+  }, []);
 
   const fetchDataForCampus = useCallback(async (campusId: string, year: string) => {
-    if (campusId === 'All') {
-        setIsLoadingData(false);
-        setBuildingsData([]);
-        setCampusTotalEmission(0);
-        setCampusTotalEmissionPrevYear(0);
-        return;
-    }
-    
     setIsLoadingData(true);
     setDataError(null);
+    const isOverview = campusId === 'All';
     const previousYear = year !== 'All' ? String(Number(year) - 1) : 'All';
 
     try {
-        const [buildingRes, campusCurrentRes, campusPrevRes] = await Promise.all([
-            fetch(`${API_BASE_URL}/emissions/building?campus=${campusId}&year=${year}`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/emissions/campus?campus=${campusId}&year=${year}&aggregate=total`).then(res => res.json()),
-            fetch(`${API_BASE_URL}/emissions/campus?campus=${campusId}&year=${previousYear}&aggregate=total`).then(res => res.json())
-        ]);
-        
-        setCampusTotalEmission(campusCurrentRes.total_emissions?.[campusId] || 0);
-        setCampusTotalEmissionPrevYear(campusPrevRes.total_emissions?.[campusId] || 0);
+      const [buildingRes, campusCurrentRes, campusPrevRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/emissions/building?campus=${campusId}&year=${year}`),
+        fetch(`${API_BASE_URL}/emissions/campus?campus=${campusId}&year=${year}&aggregate=total`),
+        fetch(`${API_BASE_URL}/emissions/campus?campus=${campusId}&year=${previousYear}&aggregate=total`)
+      ]);
 
-        let buildings = buildingRes.buildings?.[campusId]?.buildings || buildingRes.buildings;
+      if (!buildingRes.ok || !campusCurrentRes.ok || !campusPrevRes.ok) {
+        throw new Error("Network response was not ok");
+      }
+
+      const buildingData = await buildingRes.json();
+      const campusCurrentData = await campusCurrentRes.json();
+      const campusPrevData = await campusPrevRes.json();
+      
+      setCampusTotalEmission(campusCurrentData.total_emissions?.[campusId] || 0);
+      setCampusTotalEmissionPrevYear(campusPrevData.total_emissions?.[campusId] || 0);
+
+      if (!isOverview) {
+        const buildings = buildingData.buildings;
         if (buildings && typeof buildings === 'object') {
-            const formattedBuildings: BuildingData[] = Object.entries(buildings)
-                .map(([name, details]: [string, any]) => ({
-                    name,
-                    total_emission: details.total_emission || 0,
-                    rooms: details.rooms
-                }))
-                .sort((a, b) => b.total_emission - a.total_emission);
-            setBuildingsData(formattedBuildings);
+          const formattedBuildings: BuildingData[] = Object.entries(buildings)
+            .map(([name, details]: [string, any]) => ({
+              name,
+              total_emission: details.total_emission || 0,
+              rooms: details.rooms,
+            }))
+            .sort((a, b) => b.total_emission - a.total_emission);
+          setBuildingsData(formattedBuildings);
         } else {
-            setBuildingsData([]);
+          setBuildingsData([]);
         }
-
-    } catch (e: any) {
-        setDataError(e.message);
+      } else {
         setBuildingsData([]);
-        setCampusTotalEmission(null);
-        setCampusTotalEmissionPrevYear(null);
+      }
+    } catch (e: any) {
+      setDataError(e.message);
     } finally {
-        setIsLoadingData(false);
+      setIsLoadingData(false);
     }
   }, []);
 
@@ -132,17 +131,26 @@ export default function HomePage() {
         if (!response.ok) throw new Error("Failed to fetch years");
         const data: CampusEmissionsResponse = await response.json();
         const years = new Set<string>();
-        Object.values(data.emissions || {}).forEach(d => Object.keys(d).forEach(y => !isNaN(parseInt(y)) && years.add(y)));
+        Object.values(data.emissions || {}).forEach(d => 
+            Object.keys(d).forEach(y => !isNaN(parseInt(y)) && years.add(y))
+        );
         setAvailableYears(["All", ...Array.from(years).sort((a, b) => parseInt(b) - parseInt(a))]);
-      } catch (e) { console.error("Error fetching available years:", e); }
+      } catch (e) {
+        console.error("Error fetching available years:", e);
+      }
     };
     fetchYears();
   }, []);
 
   useEffect(() => {
-    if (selectedLocation) {
+    fetchDataForCampus(selectedLocation.id as string, selectedYear);
+    const intervalId = setInterval(() => {
       fetchDataForCampus(selectedLocation.id as string, selectedYear);
-    }
+    }, 5000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [selectedLocation, selectedYear, fetchDataForCampus]);
 
   if (isAuthLoading) {
@@ -162,28 +170,28 @@ export default function HomePage() {
       </Head>
       <Layout noPadding={true}>
         <div className="h-[calc(100vh-4rem)] w-full relative flex">
-          <LocationSidebar
-            isOpen={isSidebarOpen}
-            onReturnToOverview={handleReturnToOverview}
-            location={selectedLocation}
-            buildings={buildingsData}
-            isLoading={isLoadingData}
-            error={dataError}
-            selectedYear={selectedYear}
-            availableYears={availableYears}
-            onYearChange={handleYearChange}
-            campusTotalEmission={campusTotalEmission}
-            campusTotalEmissionPrevYear={campusTotalEmissionPrevYear}
+          <LocationSidebar 
+            isOpen={isSidebarOpen} 
+            onReturnToOverview={handleReturnToOverview} 
+            location={selectedLocation} 
+            buildings={buildingsData} 
+            isLoading={isLoadingData} 
+            error={dataError} 
+            selectedYear={selectedYear} 
+            availableYears={availableYears} 
+            onYearChange={handleYearChange} 
+            campusTotalEmission={campusTotalEmission} 
+            campusTotalEmissionPrevYear={campusTotalEmissionPrevYear} 
           />
           <div className="h-full flex-1">
-            <MapComponent
-              onLocationSelect={handleLocationSelect}
-              allLocations={ALL_CAMPUS_LOCATIONS}
-              center={mapView.center}
-              zoom={mapView.zoom}
-              isSidebarOpen={isSidebarOpen}
-              onPopupClose={handleReturnToOverview}
-              selectedLocationId={selectedLocation.id}
+            <MapComponent 
+              onLocationSelect={handleLocationSelect} 
+              allLocations={ALL_CAMPUS_LOCATIONS} 
+              center={mapView.center} 
+              zoom={mapView.zoom} 
+              isSidebarOpen={isSidebarOpen} 
+              onPopupClose={handleReturnToOverview} 
+              selectedLocationId={selectedLocation.id} 
             />
           </div>
         </div>

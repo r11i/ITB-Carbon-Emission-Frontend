@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useState, ReactNode } from "react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
-import { TooltipProps } from 'recharts/types/component/DefaultTooltipContent';
+import Link from "next/link";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend, TooltipProps } from "recharts";
 
 export interface LocationData {
   id: string | number;
@@ -33,10 +33,7 @@ const formatYAxis = (tickItem: number) => {
     return tickItem.toString();
 };
 
-const monthLabels: { [key: number]: string } = {
-    1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr", 5: "May", 6: "Jun",
-    7: "Jul", 8: "Aug", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec"
-};
+const monthLabels: { [key: number]: string } = { 1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr", 5: "May", 6: "Jun", 7: "Jul", 8: "Aug", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec" };
 
 const Skeleton: React.FC<{ className?: string }> = ({ className }) => <div className={`bg-slate-200 rounded animate-pulse ${className}`}></div>;
 
@@ -56,7 +53,6 @@ const StatCard: React.FC<{ title: string; value: string; isLoading: boolean; sub
     const variantClasses = variant === 'primary' 
         ? "bg-blue-50 border-blue-200/90" 
         : "bg-white border-slate-200/90";
-    
     const titleColor = variant === 'primary' ? 'text-blue-700' : 'text-slate-500';
     const valueColor = variant === 'primary' ? 'text-blue-900' : 'text-slate-800';
 
@@ -331,12 +327,10 @@ const CampusView: React.FC<Omit<LocationSidebarProps, 'isOpen' | 'onReturnToOver
                 </StatCard>
                 <StatCard title="Buildings Tracked" value={isLoading ? "-" : String(buildings.length)} isLoading={isLoading} />
             </div>
-            
             <div>
                 <h3 className="text-sm font-semibold text-slate-600 mb-2">Emissions Trend</h3>
                 {isTrendLoading ? <Skeleton className="h-52 w-full"/> : <MiniTrendChart data={trendData} />}
             </div>
-            
             <ExpandableDataTable
                 title="Top Emitting Buildings"
                 items={buildings.map(b => ({ name: b.name, value: b.total_emission }))}
@@ -382,14 +376,23 @@ export default function LocationSidebar(props: LocationSidebarProps) {
         <div className="absolute top-0 left-0 h-full w-[90vw] max-w-md bg-slate-100 z-20 flex flex-col shadow-lg">
             <div className="p-4 bg-white border-b border-slate-200 flex-shrink-0">
                 <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                         {!isDashboardView && (
-                            <button onClick={onReturnToOverview} className="p-1 text-slate-500 hover:text-slate-800 rounded-full hover:bg-slate-100" title="Back to Overview">
+                            <button onClick={onReturnToOverview} className="p-1 text-slate-500 hover:text-slate-800 rounded-full hover:bg-slate-100 flex-shrink-0" title="Back to Overview">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
                             </button>
                         )}
-                        <h2 className="text-lg font-bold text-slate-800">{location.name}</h2>
+                        <h2 className="text-lg font-bold text-slate-800 truncate">{location.name}</h2>
                     </div>
+                    {isDashboardView && (
+                        <Link href="/carbon-dashboard" passHref legacyBehavior>
+                            <a className="p-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full transition-colors" title="View Full Dashboard Page">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                                </svg>
+                            </a>
+                        </Link>
+                    )}
                 </div>
                 <p className="text-xs text-slate-500 mt-1 ml-1">{selectedYear === "All" ? "All time data" : `Data for ${selectedYear}`}</p>
                 <select value={selectedYear} onChange={(e) => onYearChange(e.target.value)} className="w-full text-sm mt-3 p-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
@@ -397,7 +400,7 @@ export default function LocationSidebar(props: LocationSidebarProps) {
                 </select>
             </div>
             <div className="flex-1 overflow-y-auto min-h-0">
-                {isDashboardView ? <DashboardView {...props} /> : <CampusView {...props} />}
+                {isDashboardView ? <DashboardView selectedYear={selectedYear} /> : <CampusView {...props} />}
             </div>
         </div>
     );

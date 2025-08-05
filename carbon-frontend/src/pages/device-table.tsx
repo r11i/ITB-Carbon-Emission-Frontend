@@ -36,9 +36,6 @@ const Spinner: React.FC<{ className?: string }> = ({ className = "h-5 w-5" }) =>
   <ArrowPathIcon className={`animate-spin ${className}`} />
 );
 
-// ==================================================================
-// === NEW: Skeleton Loader Components ===
-// ==================================================================
 const SkeletonRow: React.FC<{ columnCount?: number; useNarrowPadding?: boolean }> = ({ columnCount = 3, useNarrowPadding = false }) => (
   <tr className="animate-pulse">
     {Array.from({ length: columnCount }).map((_, i) => (
@@ -56,8 +53,6 @@ const TableSkeletonLoader: React.FC<{ rows?: number; cols?: number; narrowPaddin
     ))}
   </>
 );
-// ==================================================================
-
 
 const FullPageLoader: React.FC<{ text: string }> = ({ text }) => (
   <div className="flex flex-col justify-center items-center h-screen bg-slate-50">
@@ -98,8 +93,8 @@ export default function DeviceTablePage() {
   const [formData, setFormData] = useState({ deviceName: "", devicePower: "", usageHours: "" });
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
 
-  const [isDataLoading, setIsDataLoading] = useState(false); // Changed from isModalLoading
-  const [isSubmitting, setIsSubmitting] = useState(false); // For modal submissions
+  const [isDataLoading, setIsDataLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
   const [pageSuccess, setPageSuccess] = useState<string | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
@@ -134,9 +129,7 @@ export default function DeviceTablePage() {
     if (isAuthenticated) {
       fetchWithAuth(`${API_BASE_URL}/campuses`)
         .then(res => {
-          if (!res.ok) {
-            throw new Error('Network response was not ok');
-          }
+          if (!res.ok) throw new Error('Network response was not ok');
           return res.json();
         })
         .then(data => {
@@ -320,12 +313,13 @@ export default function DeviceTablePage() {
     }
   };
   
-  const getDayClassName = (date: Date) => {
+  const getDayClassName = (date: Date): string => {
     const today = new Date();
-    if (date.getFullYear() < today.getFullYear() || (date.getFullYear() === today.getFullYear() && date.getMonth() < today.getMonth())) {
-      return 'text-slate-400';
+    today.setHours(0, 0, 0, 0);
+    if (date < today) {
+        return 'text-slate-400';
     }
-    return undefined;
+    return '';
   };
 
   if (isAuthLoading) return <FullPageLoader text="Verifying authentication..." />;
@@ -381,7 +375,6 @@ export default function DeviceTablePage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-slate-200">
-                    {/* CHANGED: Replaced Spinner with Skeleton Loader */}
                     {isDataLoading && deviceList.length === 0 && selectedRoomName ? (
                       <TableSkeletonLoader rows={5} cols={3} />
                     ) : deviceList.length > 0 ? deviceList.map(device => (
@@ -418,7 +411,6 @@ export default function DeviceTablePage() {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-slate-200">
-                        {/* CHANGED: Replaced Spinner with Skeleton Loader */}
                         {isDataLoading && usageList.length === 0 ? (
                           <TableSkeletonLoader rows={5} cols={3} narrowPadding={true} />
                         ) : usageList.length > 0 ? usageList.map(usage => (
