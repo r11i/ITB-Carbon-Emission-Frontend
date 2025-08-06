@@ -251,7 +251,7 @@ export default function DeviceTablePage() {
           successMessage = 'Device updated successfully.';
           break;
         case 'DELETE_DEVICE':
-            if (!itemToEdit) throw new Error("Item to delete is not specified.");
+          if (!itemToEdit) throw new Error("Item to delete is not specified.");
           url = `${API_BASE_URL}/devices/${(itemToEdit as Device).device_id}`;
           method = 'DELETE';
           successMessage = 'Device deleted successfully.';

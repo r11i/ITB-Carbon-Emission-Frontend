@@ -17,10 +17,8 @@ export default async function handler(req, res) {
       return authenticateUser(req, res, () => handleAddDevice(req, res));
     case 'PUT':
       return authenticateUser(req, res, () => handleUpdateDevice(req, res));
-    case 'DELETE':
-      return authenticateUser(req, res, () => handleDeleteDevice(req, res));
     default:
-      res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
+      res.setHeader('Allow', ['GET', 'POST', 'PUT']);
       res.status(405).end(`Method ${method} Not Allowed`);
   }
 }
@@ -146,36 +144,4 @@ async function handleUpdateDevice(req, res) {
         console.error("Unexpected server error:", err.message);
         res.status(500).json({ error: "Server error while updating device." });
     }
-}
-
-// DELETE device
-async function handleDeleteDevice(req, res) {
-  const { device_id } = req.body;
-
-  if (!device_id) {
-    return res.status(400).json({ error: "Device ID is required." });
-  }
-
-  try {
-    const { data: existingDevice, error: fetchError } = await supabase
-      .from("Devices")
-      .select("*")
-      .eq("device_id", device_id)
-      .maybeSingle();
-
-    if (fetchError) throw fetchError;
-    if (!existingDevice) return res.status(404).json({ error: "Device not found." });
-
-    const { error: deleteError } = await supabase
-      .from("Devices")
-      .delete()
-      .eq("device_id", device_id);
-
-    if (deleteError) throw deleteError;
-
-    res.json({ message: "Device deleted successfully.", deleted_device_id: device_id });
-  } catch (err) {
-    console.error("Delete device error:", err.message);
-    res.status(500).json({ error: "Server error: " + err.message });
-  }
 }
