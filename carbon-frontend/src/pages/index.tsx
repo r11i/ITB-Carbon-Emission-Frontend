@@ -85,8 +85,8 @@ export default function HomePage() {
     try {
       const [buildingRes, campusCurrentRes, campusPrevRes] = await Promise.all([
         fetch(`${API_BASE_URL}/emissions/building?campus=${campusId}&year=${year}`),
-        fetch(`${API_BASE_URL}/emissions/campus?campus=${campusId}&year=${year}&aggregate=total`),
-        fetch(`${API_BASE_URL}/emissions/campus?campus=${campusId}&year=${previousYear}&aggregate=total`)
+        fetch(`${API_BASE_URL}/emissions/campus?campus=${campusId}&year=${year}`),
+        fetch(`${API_BASE_URL}/emissions/campus?campus=${campusId}&year=${previousYear}`)
       ]);
 
       if (!buildingRes.ok || !campusCurrentRes.ok || !campusPrevRes.ok) {
