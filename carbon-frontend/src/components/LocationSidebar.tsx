@@ -10,7 +10,7 @@ export interface LocationData {
   lat: number;
   lng: number;
   address: string;
-  imageUrl: string;
+  imageUrl:string;
 }
 export interface BuildingData {
   name: string;
@@ -47,11 +47,11 @@ const ComparisonPill: React.FC<{ change: number | null }> = ({ change }) => {
     );
 };
 
-const StatCard: React.FC<{ title: string; value: string; isLoading: boolean; subtitle?: string; children?: ReactNode; variant?: 'default' | 'primary' }> = 
+const StatCard: React.FC<{ title: string; value: string; isLoading: boolean; subtitle?: string; children?: ReactNode; variant?: 'default' | 'primary' }> =
 ({ title, value, isLoading, subtitle, children, variant = 'default' }) => {
     const baseClasses = "p-3 rounded-md border min-w-0";
-    const variantClasses = variant === 'primary' 
-        ? "bg-blue-50 border-blue-200/90" 
+    const variantClasses = variant === 'primary'
+        ? "bg-blue-50 border-blue-200/90"
         : "bg-white border-slate-200/90";
     const titleColor = variant === 'primary' ? 'text-blue-700' : 'text-slate-500';
     const valueColor = variant === 'primary' ? 'text-blue-900' : 'text-slate-800';
@@ -72,7 +72,7 @@ const StatCard: React.FC<{ title: string; value: string; isLoading: boolean; sub
     );
 };
 
-const ExpandableDataTable: React.FC<{ title: string; items: ListItem[]; headers: [string, string, string]; isLoading: boolean; defaultVisible?: number; children?: ReactNode }> = 
+const ExpandableDataTable: React.FC<{ title: string; items: ListItem[]; headers: [string, string, string]; isLoading: boolean; defaultVisible?: number; children?: ReactNode }> =
 ({ title, items, headers, isLoading, defaultVisible = 5, children }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const visibleItems = isExpanded ? items : items.slice(0, defaultVisible);
@@ -121,7 +121,7 @@ const MiniTrendChart: React.FC<{ data: any[] }> = ({ data }) => (
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748B' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
                 <YAxis tick={{ fontSize: 10, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={formatYAxis} />
-                <Tooltip 
+                <Tooltip
                     contentStyle={{ fontSize: '12px', borderRadius: '0.5rem', padding: '8px' }}
                     formatter={(value: number) => [`${formatNumber(value, 2)} kg CO₂e`, "Emissions"]}
                 />
@@ -217,7 +217,7 @@ const DashboardView: React.FC<{ selectedYear: string }> = ({ selectedYear }) => 
                 });
                 
                 setData({ total, prevTotal, trend: trendData, devices: devList, campuses: campusList });
-            } catch (err) { console.error(err); } 
+            } catch (err) { console.error(err); }
             finally { setIsLoading(false); }
         };
         fetchData();
@@ -225,12 +225,12 @@ const DashboardView: React.FC<{ selectedYear: string }> = ({ selectedYear }) => 
 
     const percentageChange = (data.total && data.prevTotal) ? ((data.total - data.prevTotal) / data.prevTotal) * 100 : null;
     const comparisonSubtitle = selectedYear !== 'All' ? `vs ${Number(selectedYear) - 1}` : 'vs Previous Period';
-    
+
     return (
         <div className="p-4 space-y-5">
-            <StatCard 
-                title="Total Emissions" 
-                value={`${formatNumber(data.total, 2)} kg CO₂e`} 
+            <StatCard
+                title="Total Emissions"
+                value={`${formatNumber(data.total, 2)} kg CO₂e`}
                 isLoading={isLoading}
                 subtitle={comparisonSubtitle}
                 variant="primary"
@@ -252,35 +252,36 @@ const CampusView: React.FC<Omit<LocationSidebarProps, 'isOpen' | 'onReturnToOver
     const [rooms, setRooms] = useState<ListItem[]>([]);
     const [selectedBuilding, setSelectedBuilding] = useState<string>("");
     const [deviceData, setDeviceData] = useState<ListItem[]>([]);
-    const [isDeviceLoading, setIsDeviceLoading] = useState(true);
     const [trendData, setTrendData] = useState<any[]>([]);
-    const [isTrendLoading, setIsTrendLoading] = useState(true);
+    const [isSubDataLoading, setIsSubDataLoading] = useState(true);
 
-    useEffect(() => { 
-        setSelectedBuilding(""); 
-        setRooms([]); 
-    }, [location]);
+    const locationId = location?.id;
+
+    useEffect(() => {
+        setSelectedBuilding("");
+        setRooms([]);
+    }, [locationId]);
     
     useEffect(() => {
-        if (!location || location.id === 'All') return;
-        
-        const fetchDeviceData = async () => {
-            setIsDeviceLoading(true);
-            try {
-                const res = await fetch(`${API_BASE_URL}/emissions/device?campus=${location.id}&year=${selectedYear}`).then(r => r.json());
-                const devList = res.device_emissions ? Object.entries(res.device_emissions as {[k:string]:number}).map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value) : [];
-                setDeviceData(devList);
-            } catch (err) { console.error("Failed to fetch device data for campus:", err); setDeviceData([]); } 
-            finally { setIsDeviceLoading(false); }
-        };
+        if (!locationId || locationId === 'All' || isLoading) {
+            return;
+        }
 
-        const fetchTrendData = async () => {
-            setIsTrendLoading(true);
+        const fetchSubData = async () => {
+            setIsSubDataLoading(true);
             const isAllYears = selectedYear === 'All';
             const aggregate = isAllYears ? 'yearly_total' : 'monthly_total';
+            
             try {
-                const res = await fetch(`${API_BASE_URL}/emissions/campus?campus=${location.id}&year=${selectedYear}&aggregate=${aggregate}`).then(r => r.json());
-                const campusTrendData = res.emissions?.[location.id as string] || {};
+                const [deviceRes, trendRes] = await Promise.all([
+                    fetch(`${API_BASE_URL}/emissions/device?campus=${locationId}&year=${selectedYear}`).then(r => r.json()),
+                    fetch(`${API_BASE_URL}/emissions/campus?campus=${locationId}&year=${selectedYear}&aggregate=${aggregate}`).then(r => r.json())
+                ]);
+
+                const devList = deviceRes.device_emissions ? Object.entries(deviceRes.device_emissions as {[k:string]:number}).map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value) : [];
+                setDeviceData(devList);
+                
+                const campusTrendData = trendRes.emissions?.[locationId as string] || {};
                 const formattedTrend = Object.entries(campusTrendData).map(([time, total]) => ({
                     name: isAllYears ? time : monthLabels[parseInt(time)] || time,
                     total
@@ -290,17 +291,25 @@ const CampusView: React.FC<Omit<LocationSidebarProps, 'isOpen' | 'onReturnToOver
                     return Number(timeA) - Number(timeB);
                 });
                 setTrendData(formattedTrend);
-            } catch (err) { console.error("Failed to fetch trend data for campus:", err); setTrendData([]); }
-            finally { setIsTrendLoading(false); }
+
+            } catch (err) { 
+                console.error("Failed to fetch sub data for campus:", err); 
+                setDeviceData([]);
+                setTrendData([]);
+            } finally {
+                setIsSubDataLoading(false);
+            }
         };
 
-        fetchDeviceData();
-        fetchTrendData();
+        fetchSubData();
 
-    }, [location, selectedYear]);
+    }, [locationId, selectedYear, isLoading]);
 
     useEffect(() => {
-        if (!selectedBuilding) { setRooms([]); return; }
+        if (!selectedBuilding) { 
+            setRooms([]); 
+            return; 
+        }
         const building = buildings.find(b => b.name === selectedBuilding);
         if (building && building.rooms) {
             const roomList = Object.entries(building.rooms).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
@@ -309,6 +318,29 @@ const CampusView: React.FC<Omit<LocationSidebarProps, 'isOpen' | 'onReturnToOver
             setRooms([]);
         }
     }, [selectedBuilding, buildings]);
+    
+    if (isLoading) {
+        return (
+            <div className="p-4 space-y-5">
+                <div className="space-y-3">
+                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-16 w-full" />
+                </div>
+                <div>
+                    <Skeleton className="h-8 w-1/3 mb-2" />
+                    <Skeleton className="h-52 w-full"/>
+                </div>
+                <div>
+                    <Skeleton className="h-8 w-1/3 mb-2" />
+                    <Skeleton className="h-32 w-full"/>
+                </div>
+                 <div>
+                    <Skeleton className="h-8 w-1/3 mb-2" />
+                    <Skeleton className="h-64 w-full"/>
+                </div>
+            </div>
+        );
+    }
     
     const percentageChange = (campusTotalEmission && campusTotalEmissionPrevYear) ? ((campusTotalEmission - campusTotalEmissionPrevYear) / campusTotalEmissionPrevYear) * 100 : null;
     const comparisonSubtitle = selectedYear !== 'All' ? `vs ${Number(selectedYear) - 1}` : 'vs Previous Period';
@@ -325,11 +357,11 @@ const CampusView: React.FC<Omit<LocationSidebarProps, 'isOpen' | 'onReturnToOver
                 >
                     <ComparisonPill change={percentageChange} />
                 </StatCard>
-                <StatCard title="Buildings Tracked" value={isLoading ? "-" : String(buildings.length)} isLoading={isLoading} />
+                <StatCard title="Buildings Tracked" value={String(buildings.length)} isLoading={isLoading} />
             </div>
             <div>
                 <h3 className="text-sm font-semibold text-slate-600 mb-2">Emissions Trend</h3>
-                {isTrendLoading ? <Skeleton className="h-52 w-full"/> : <MiniTrendChart data={trendData} />}
+                {isSubDataLoading ? <Skeleton className="h-52 w-full"/> : <MiniTrendChart data={trendData} />}
             </div>
             <ExpandableDataTable
                 title="Top Emitting Buildings"
@@ -341,14 +373,14 @@ const CampusView: React.FC<Omit<LocationSidebarProps, 'isOpen' | 'onReturnToOver
                 title="Top Emitting Rooms"
                 items={rooms}
                 headers={['#', 'Room', 'Emissions (kg CO₂e)']}
-                isLoading={false}
+                isLoading={isLoading || buildings.length === 0}
             >
                 <select value={selectedBuilding} onChange={e => setSelectedBuilding(e.target.value)} disabled={isLoading || buildings.length === 0} className="w-full text-sm p-2 mb-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
                     <option value="">-- Select Building --</option>
                     {buildings.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
                 </select>
             </ExpandableDataTable>
-            <DevicePieChart title="Emissions by Device Type" items={deviceData} isLoading={isDeviceLoading} />
+            <DevicePieChart title="Emissions by Device Type" items={deviceData} isLoading={isSubDataLoading} />
         </div>
     );
 };
@@ -382,7 +414,7 @@ export default function LocationSidebar(props: LocationSidebarProps) {
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
                             </button>
                         )}
-                        <h2 className="text-lg font-bold text-slate-800 truncate">{location.name}</h2>
+                        <h2 className="text-lg font-bold text-slate-800 truncate">{props.isLoading ? <Skeleton className="h-6 w-40" /> : location.name}</h2>
                     </div>
                     {isDashboardView && (
                         <Link href="/carbon-dashboard" passHref legacyBehavior>
