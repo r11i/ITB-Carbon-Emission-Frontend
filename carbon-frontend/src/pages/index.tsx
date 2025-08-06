@@ -27,9 +27,6 @@ const MapComponent = dynamic(() => import("@/components/MapComponent"), {
 });
 const LocationSidebar = dynamic(() => import("@/components/LocationSidebar"), { ssr: false });
 
-interface BuildingJsonResponse {
-    buildings: { [buildingName: string]: { total_emission: number; rooms?: {} } };
-}
 interface CampusEmissionsResponse {
     total_emissions: { [campus: string]: number; };
     emissions: { [campus: string]: { [year: string]: number; }; };
@@ -76,54 +73,6 @@ export default function HomePage() {
     setSelectedYear(newYear);
   }, []);
 
-  const fetchDataForCampus = useCallback(async (campusId: string, year: string) => {
-    setIsLoadingData(true);
-    setDataError(null);
-    const isOverview = campusId === 'All';
-    const previousYear = year !== 'All' ? String(Number(year) - 1) : 'All';
-
-    try {
-      const [buildingRes, campusCurrentRes, campusPrevRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/emissions/building?campus=${campusId}&year=${year}`),
-        fetch(`${API_BASE_URL}/emissions/campus?campus=${campusId}&year=${year}&aggregate=total`),
-        fetch(`${API_BASE_URL}/emissions/campus?campus=${campusId}&year=${previousYear}&aggregate=total`)
-      ]);
-
-      if (!buildingRes.ok || !campusCurrentRes.ok || !campusPrevRes.ok) {
-        throw new Error("Network response was not ok");
-      }
-
-      const buildingData = await buildingRes.json();
-      const campusCurrentData = await campusCurrentRes.json();
-      const campusPrevData = await campusPrevRes.json();
-      
-      setCampusTotalEmission(campusCurrentData.total_emissions?.[campusId] || 0);
-      setCampusTotalEmissionPrevYear(campusPrevData.total_emissions?.[campusId] || 0);
-
-      if (!isOverview) {
-        const buildings = buildingData.buildings;
-        if (buildings && typeof buildings === 'object') {
-          const formattedBuildings: BuildingData[] = Object.entries(buildings)
-            .map(([name, details]: [string, any]) => ({
-              name,
-              total_emission: details.total_emission || 0,
-              rooms: details.rooms,
-            }))
-            .sort((a, b) => b.total_emission - a.total_emission);
-          setBuildingsData(formattedBuildings);
-        } else {
-          setBuildingsData([]);
-        }
-      } else {
-        setBuildingsData([]);
-      }
-    } catch (e: any) {
-      setDataError(e.message);
-    } finally {
-      setIsLoadingData(false);
-    }
-  }, []);
-
   useEffect(() => {
     const fetchYears = async () => {
       try {
@@ -143,15 +92,68 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    fetchDataForCampus(selectedLocation.id as string, selectedYear);
-    const intervalId = setInterval(() => {
-      fetchDataForCampus(selectedLocation.id as string, selectedYear);
-    }, 5000);
+    const fetchDataForCampus = async () => {
+      const campusId = selectedLocation.id as string;
+      if (!campusId) return;
 
-    return () => {
-      clearInterval(intervalId);
+      setIsLoadingData(true);
+      setDataError(null);
+      setBuildingsData([]);
+      
+      const previousYear = selectedYear !== 'All' ? String(Number(selectedYear) - 1) : 'All';
+
+      try {
+        if (campusId === 'All') {
+          setBuildingsData([]);
+          setCampusTotalEmission(null);
+          setCampusTotalEmissionPrevYear(null);
+          setIsLoadingData(false);
+          return;
+        }
+
+        const [buildingRes, campusCurrentRes, campusPrevRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/emissions/building?campus=${campusId}&year=${selectedYear}`),
+          fetch(`${API_BASE_URL}/emissions/campus?campus=${campusId}&year=${selectedYear}&aggregate=total`),
+          fetch(`${API_BASE_URL}/emissions/campus?campus=${campusId}&year=${previousYear}&aggregate=total`)
+        ]);
+
+        if (!buildingRes.ok || !campusCurrentRes.ok || !campusPrevRes.ok) {
+          throw new Error("Network response was not ok");
+        }
+
+        const buildingData = await buildingRes.json();
+        const campusCurrentData = await campusCurrentRes.json();
+        const campusPrevData = await campusPrevRes.json();
+        
+        setCampusTotalEmission(campusCurrentData.total_emissions?.[campusId] || 0);
+        setCampusTotalEmissionPrevYear(campusPrevData.total_emissions?.[campusId] || 0);
+
+        const buildings = buildingData.buildings;
+        if (buildings && typeof buildings === 'object') {
+          const formattedBuildings: BuildingData[] = Object.entries(buildings)
+            .map(([name, details]: [string, any]) => ({
+              name,
+              total_emission: details.total_emission || 0,
+              rooms: details.rooms,
+            }))
+            .sort((a, b) => b.total_emission - a.total_emission);
+          setBuildingsData(formattedBuildings);
+        } else {
+          setBuildingsData([]);
+        }
+      } catch (e: any) {
+        setDataError(e.message);
+        setBuildingsData([]);
+        setCampusTotalEmission(null);
+        setCampusTotalEmissionPrevYear(null);
+      } finally {
+        setIsLoadingData(false);
+      }
     };
-  }, [selectedLocation, selectedYear, fetchDataForCampus]);
+
+    fetchDataForCampus();
+
+  }, [selectedLocation, selectedYear]);
 
   if (isAuthLoading) {
     return (
