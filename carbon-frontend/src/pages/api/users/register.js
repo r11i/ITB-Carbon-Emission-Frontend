@@ -34,7 +34,7 @@ export default async function handler(req, res) {
 
     // Step 2: Register new user
     const { data, error: signUpError } = await supabase.auth.signUp({
-      username,
+      email: username,
       password,
     });
 

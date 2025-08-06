@@ -264,9 +264,9 @@ export default function DeviceTablePage() {
                 successMessage = 'Usage updated successfully.';
                 break;
             case 'DELETE_USAGE':
-                url = `${API_BASE_URL}/device-usages`;
+                url = `${API_BASE_URL}/device-usages/${(itemToEdit as UsageRecord).usage_id}`;
                 method = 'DELETE';
-                payload = { usage_id: (itemToEdit as UsageRecord).usage_id };
+                payload = undefined;
                 successMessage = 'Usage deleted successfully.';
                 break;
         }

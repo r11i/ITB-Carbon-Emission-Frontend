@@ -104,35 +104,48 @@ async function handleAddDevice(req, res) {
 
 // PUT (update) device
 async function handleUpdateDevice(req, res) {
-  const { device_id, device_name, device_power, room_id } = req.body;
+    const { device_id, device_name, device_power, room_id } = req.body;
 
-  if (!device_id || !device_name || !device_power || !room_id) {
-    return res.status(400).json({ error: "All fields are required." });
-  }
+    // Validasi input
+    if (!device_name || !device_power || !room_id) {
+        return res.status(400).json({ error: "All fields are required." });
+    }
 
-  try {
-    const { data, error } = await supabase
-      .from("Devices")
-      .update({
-        device_name,
-        device_power: parseInt(device_power),
-        room_id: parseInt(room_id)
-      })
-      .eq("device_id", device_id)
-      .select()
-      .single();
+    if (isNaN(device_power) || device_power <= 0) {
+        return res.status(400).json({ error: "device_power must be a positive number." });
+    }
 
-    if (error) throw error;
-    if (!data) return res.status(404).json({ error: "Device not found." });
+    try {
+        // Update hanya data dengan device_id yang cocok
+        const { data, error } = await supabase
+            .from("Devices")
+            .update({
+                device_name,
+                device_power: parseInt(device_power),
+                room_id: parseInt(room_id)
+            })
+            .eq("device_id", device_id)
+            .select()
+            .single();
 
-    res.json({
-      message: "Device updated successfully.",
-      device: data
-    });
-  } catch (err) {
-    console.error("Update device error:", err.message);
-    res.status(500).json({ error: "Failed to update device." });
-  }
+        if (error) {
+            console.error("Error updating device:", error.message);
+            return res.status(500).json({ error: "Failed to update device." });
+        }
+
+        if (!data) {
+            return res.status(404).json({ error: "Device not found." });
+        }
+
+        res.json({
+            message: "Device updated successfully.",
+            device: data
+        });
+
+    } catch (err) {
+        console.error("Unexpected server error:", err.message);
+        res.status(500).json({ error: "Server error while updating device." });
+    }
 }
 
 // DELETE device
