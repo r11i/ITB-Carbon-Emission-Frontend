@@ -35,7 +35,7 @@ interface CampusEmissionsResponse {
     emissions: { [campus: string]: { [year: string]: number; }; };
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_BASE_URL = "/api";
 
 const ALL_CAMPUS_LOCATIONS: LocationData[] = [
     { id: "Ganesha", name: "ITB Ganesha Campus", lat: -6.89018, lng: 107.61017, address: "Jl. Ganesa No.10", imageUrl: "/itb-gane.jpg" },

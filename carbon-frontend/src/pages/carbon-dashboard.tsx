@@ -9,7 +9,7 @@ import {
 } from "recharts";
 import { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_BASE_URL = "/api";
 const trendPalette = ["#2563EB"];
 const comparisonPalette = ["#1E3A8A", "#1D4ED8", "#3B82F6", "#60A5FA", "#93C5FD", "#A78BFA", "#7C3AED", "#F472B6", "#10B981", "#F59E0B"];
 const devicePiePalette = ["#10B981", "#F59E0B", "#6366F1", "#8B5CF6", "#EC4899", "#3B82F6", "#F97316", "#14B8A6"];

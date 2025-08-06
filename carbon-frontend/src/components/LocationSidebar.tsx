@@ -19,7 +19,7 @@ export interface BuildingData {
 }
 interface ListItem { name: string; value: number; }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_BASE_URL = "/api";
 const PIE_CHART_COLORS = ['#3B82F6', '#6366F1', '#8B5CF6', '#EC4899', '#F97316', '#F59E0B', '#10B981', '#64748B'];
 
 const formatNumber = (num: number | null | undefined, dec = 2): string => {
