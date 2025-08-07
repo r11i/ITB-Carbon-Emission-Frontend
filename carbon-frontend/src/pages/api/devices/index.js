@@ -17,10 +17,8 @@ export default async function handler(req, res) {
       return authenticateUser(req, res, () => handleAddDevice(req, res));
     case 'PUT':
       return authenticateUser(req, res, () => handleUpdateDevice(req, res));
-    case 'DELETE':
-      return authenticateUser(req, res, () => handleDeleteDevice(req, res));
     default:
-      res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
+      res.setHeader('Allow', ['GET', 'POST', 'PUT']);
       res.status(405).end(`Method ${method} Not Allowed`);
   }
 }
@@ -104,65 +102,46 @@ async function handleAddDevice(req, res) {
 
 // PUT (update) device
 async function handleUpdateDevice(req, res) {
-  const { device_id, device_name, device_power, room_id } = req.body;
+    const { device_id, device_name, device_power, room_id } = req.body;
 
-  if (!device_id || !device_name || !device_power || !room_id) {
-    return res.status(400).json({ error: "All fields are required." });
-  }
+    // Validasi input
+    if (!device_name || !device_power || !room_id) {
+        return res.status(400).json({ error: "All fields are required." });
+    }
 
-  try {
-    const { data, error } = await supabase
-      .from("Devices")
-      .update({
-        device_name,
-        device_power: parseInt(device_power),
-        room_id: parseInt(room_id)
-      })
-      .eq("device_id", device_id)
-      .select()
-      .single();
+    if (isNaN(device_power) || device_power <= 0) {
+        return res.status(400).json({ error: "device_power must be a positive number." });
+    }
 
-    if (error) throw error;
-    if (!data) return res.status(404).json({ error: "Device not found." });
+    try {
+        // Update hanya data dengan device_id yang cocok
+        const { data, error } = await supabase
+            .from("Devices")
+            .update({
+                device_name,
+                device_power: parseInt(device_power),
+                room_id: parseInt(room_id)
+            })
+            .eq("device_id", device_id)
+            .select()
+            .single();
 
-    res.json({
-      message: "Device updated successfully.",
-      device: data
-    });
-  } catch (err) {
-    console.error("Update device error:", err.message);
-    res.status(500).json({ error: "Failed to update device." });
-  }
-}
+        if (error) {
+            console.error("Error updating device:", error.message);
+            return res.status(500).json({ error: "Failed to update device." });
+        }
 
-// DELETE device
-async function handleDeleteDevice(req, res) {
-  const { device_id } = req.body;
+        if (!data) {
+            return res.status(404).json({ error: "Device not found." });
+        }
 
-  if (!device_id) {
-    return res.status(400).json({ error: "Device ID is required." });
-  }
+        res.json({
+            message: "Device updated successfully.",
+            device: data
+        });
 
-  try {
-    const { data: existingDevice, error: fetchError } = await supabase
-      .from("Devices")
-      .select("*")
-      .eq("device_id", device_id)
-      .maybeSingle();
-
-    if (fetchError) throw fetchError;
-    if (!existingDevice) return res.status(404).json({ error: "Device not found." });
-
-    const { error: deleteError } = await supabase
-      .from("Devices")
-      .delete()
-      .eq("device_id", device_id);
-
-    if (deleteError) throw deleteError;
-
-    res.json({ message: "Device deleted successfully.", deleted_device_id: device_id });
-  } catch (err) {
-    console.error("Delete device error:", err.message);
-    res.status(500).json({ error: "Server error: " + err.message });
-  }
+    } catch (err) {
+        console.error("Unexpected server error:", err.message);
+        res.status(500).json({ error: "Server error while updating device." });
+    }
 }

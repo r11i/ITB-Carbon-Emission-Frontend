@@ -14,8 +14,6 @@ export default async function handler(req, res) {
     return getHandler(req, res);
   } else if (req.method === 'PUT') {
     return authenticateUser(req, res, () => putHandler(req, res));
-  } else if (req.method === 'DELETE') {
-    return authenticateUser(req, res, () => deleteHandler(req, res));
   } else {
     res.setHeader('Allow', ['POST', 'GET', 'PUT', 'DELETE']);
     return res.status(405).end(`Method ${req.method} Not Allowed`);
@@ -25,31 +23,25 @@ export default async function handler(req, res) {
 async function postHandler(req, res) {
   const {
     device_id,
-    device_name,
-    device_power,
-    campus_name,
-    building_name,
-    room_name,
     usage_hours,
     year,
     month,
+    day // 🆕 Tambahkan day dari req.body
   } = req.body;
 
+  // Basic validation
   if (
-    !device_name ||
-    !device_power ||
-    !campus_name ||
-    !building_name ||
-    !room_name ||
+    !device_id ||
     usage_hours == null ||
     !year ||
-    !month
+    !month ||
+    !day // 🆕 Validasi field day
   ) {
     return res.status(400).json({ error: 'Missing required fields.' });
   }
 
-  if (isNaN(+device_power) || +device_power <= 0) {
-    return res.status(400).json({ error: 'device_power must be a positive number.' });
+  if (isNaN(+device_id)) {
+    return res.status(400).json({ error: 'device_id must be a number.' });
   }
 
   if (isNaN(+usage_hours) || +usage_hours < 0) {
@@ -60,23 +52,30 @@ async function postHandler(req, res) {
     return res.status(400).json({ error: 'Invalid year or month.' });
   }
 
+  if (isNaN(+day) || +day < 1 || +day > 31) {
+    return res.status(400).json({ error: 'Invalid day.' });
+  }
+
   try {
+    // Cek apakah data sudah ada
     const { data: existingData, error: checkError } = await supabase
       .from('Device_usage')
       .select('usage_id')
       .eq('device_id', device_id)
       .eq('year', +year)
       .eq('month', +month)
+      .eq('day', +day) // 🆕 Cek juga day
       .maybeSingle();
 
     if (checkError) throw new Error(`Checking existing data: ${checkError.message}`);
 
     if (existingData) {
       return res.status(409).json({
-        error: 'Data untuk device tersebut pada bulan dan tahun yang sama sudah ada.',
+        error: 'Data untuk device tersebut pada tanggal yang sama sudah ada.',
       });
     }
 
+    // Insert data
     const { data: usageData, error: usageError } = await supabase
       .from('Device_usage')
       .insert([
@@ -85,6 +84,7 @@ async function postHandler(req, res) {
           usage_hours: +usage_hours,
           year: +year,
           month: +month,
+          day: +day // 🆕 Masukkan day
         },
       ])
       .select()
@@ -126,64 +126,42 @@ async function getHandler(req, res) {
 }
 
 async function putHandler(req, res) {
-  const { usage_id, device_id, year, month, usage_hours } = req.body;
+    const { usage_id, device_id, year, month, usage_hours } = req.body;
 
-  if (!usage_id || !device_id || !year || !month || usage_hours == null) {
-    return res.status(400).json({ error: 'All fields are required.' });
-  }
+    // Validasi input
+    if (!usage_id || !device_id || !year || !month || usage_hours == null) {
+        return res.status(400).json({ error: "All fields are required." });
+    }
 
-  if (isNaN(+usage_hours) || +usage_hours < 0 || isNaN(+year) || isNaN(+month) || +month < 1 || +month > 12) {
-    return res.status(400).json({ error: 'Invalid input values.' });
-  }
+    if (isNaN(parseInt(usage_hours)) || parseInt(usage_hours) < 0) {
+        return res.status(400).json({ error: "usage_hours must be a non-negative number." });
+    }
 
-  try {
-    const { data, error } = await supabase
-      .from('Device_usage')
-      .update({
-        device_id: +device_id,
-        year: +year,
-        month: +month,
-        usage_hours: +usage_hours,
-      })
-      .eq('usage_id', usage_id)
-      .select()
-      .single();
+    if (isNaN(parseInt(year)) || isNaN(parseInt(month)) || month < 1 || month > 12) {
+        return res.status(400).json({ error: "Invalid year or month." });
+    }
 
-    if (error) throw error;
+    try {
+        const { data, error } = await supabase
+            .from("Device_usage")
+            .update({
+                device_id: parseInt(device_id),
+                year: parseInt(year),
+                month: parseInt(month),
+                usage_hours: parseInt(usage_hours)
+            })
+            .eq("usage_id", usage_id)
+            .select()
+            .single();
 
-    res.status(200).json({
-      message: '✅ Device usage updated successfully.',
-      updated_usage: data,
-    });
-  } catch (err) {
-    console.error('❌ Update error:', err.message);
-    res.status(500).json({ error: `Failed to update device usage: ${err.message}` });
-  }
-}
+        if (error) throw error;
 
-async function deleteHandler(req, res) {
-  const { usage_id } = req.body;
-
-  if (!usage_id) {
-    return res.status(400).json({ error: 'usage_id is required.' });
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('Device_usage')
-      .delete()
-      .eq('usage_id', usage_id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    res.status(200).json({
-      message: '✅ Device usage deleted successfully.',
-      deleted_usage: data,
-    });
-  } catch (err) {
-    console.error('❌ Delete error:', err.message);
-    res.status(500).json({ error: `Failed to delete device usage: ${err.message}` });
-  }
+        res.status(200).json({
+            message: "✅ Device usage updated successfully.",
+            updated_usage: data
+        });
+    } catch (err) {
+        console.error("❌ Update error:", err.message);
+        res.status(500).json({ error: `Failed to update device usage: ${err.message}` });
+    }
 }
