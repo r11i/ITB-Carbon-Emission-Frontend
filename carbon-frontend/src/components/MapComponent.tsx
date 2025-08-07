@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
-import type { Marker as LeafletMarker } from 'leaflet';
+
 
 export interface LocationData {
   id: string | number;
@@ -63,9 +63,7 @@ function PopupStateWatcher({ isOpen, selectedLocationId }: { isOpen: boolean, se
 }
 
 export default function MapComponent({ onLocationSelect, allLocations, center, zoom, isSidebarOpen, onPopupClose, selectedLocationId }: MapComponentProps) {
-  // const markerRef = useRef<L.Marker | null>(null);
-
-  const markerRef = useRef<LeafletMarker | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
 
   return (
     <MapContainer
