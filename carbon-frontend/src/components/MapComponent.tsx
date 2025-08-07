@@ -63,6 +63,7 @@ function PopupStateWatcher({ isOpen, selectedLocationId }: { isOpen: boolean, se
 }
 
 export default function MapComponent({ onLocationSelect, allLocations, center, zoom, isSidebarOpen, onPopupClose, selectedLocationId }: MapComponentProps) {
+  // @ts-ignore
   const markerRef = useRef<L.Marker | null>(null);
 
   return (
