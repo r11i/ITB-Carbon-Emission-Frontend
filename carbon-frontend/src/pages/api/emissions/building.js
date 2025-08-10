@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 
-  const { campus = 'All', year = 'All' } = req.query;
+  let { campus = 'All', year = 'All' } = req.query;
 
   try {
     const pageSize = 1000;
